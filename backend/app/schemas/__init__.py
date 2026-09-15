@@ -9,6 +9,10 @@ from app.schemas.agent_contracts import (
     FeedbackRecord,
     LessonLearned,
     LeadProspect,
+    LeadScoringBreakdown,
+    VideoScene,
+    VideoScript,
+    ContentSuiteRequest,
     PublishingSchedule,
 )
 from app.schemas.dtos import (

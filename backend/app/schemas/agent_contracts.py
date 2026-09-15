@@ -106,6 +106,14 @@ class LessonLearned(BaseModel):
 # 5. Lead Intelligence Contracts
 # ========================================================
 
+class LeadScoringBreakdown(BaseModel):
+    industry_fit: float = Field(ge=0, le=25, description="Weight 25%: Industry alignment with JA Assure products")
+    company_profile: float = Field(ge=0, le=20, description="Weight 20%: Size, reputation, transaction volume")
+    geographic_relevance: float = Field(ge=0, le=20, description="Weight 20%: SG, MY, TH, ID jurisdiction presence")
+    product_relevance: float = Field(ge=0, le=20, description="Weight 20%: Need for Jewellery, Med Indemnity, or Transit Cargo")
+    potential_insurance_need: float = Field(ge=0, le=15, description="Weight 15%: Exposure to liability, theft, or port risk")
+    total_fit_score: float = Field(ge=0, le=100)
+
 class LeadProspect(BaseModel):
     name: str
     company: str
@@ -113,14 +121,38 @@ class LeadProspect(BaseModel):
     email: Optional[str] = None
     location: Optional[str] = None
     company_size: Optional[str] = None
+    recommended_brand: Optional[str] = None # jade, doctorshield, jaguartransit
     fit_score: float = 0.0
     qualification_reason: Optional[str] = None
     outreach_draft: Optional[str] = None
     source: Optional[str] = "agent_prospector"
+    scoring_breakdown: Optional[LeadScoringBreakdown] = None
 
 
 # ========================================================
-# 6. Publishing Contracts
+# 6. Video / Reels Contracts
+# ========================================================
+
+class VideoScene(BaseModel):
+    scene_number: int
+    duration_seconds: int = 10
+    visual_description: str
+    voiceover: str
+    onscreen_text: str
+
+class VideoScript(BaseModel):
+    brand: str
+    concept: str
+    target_duration_seconds: int = 45 # 30-60s
+    voiceover_tone: str
+    scenes: List[VideoScene] = Field(default_factory=list)
+    cta: str
+    disclaimer: str
+    media_status: str = "pending_render" # pending_render, rendered, mock_rendered
+
+
+# ========================================================
+# 7. Publishing & Suite Contracts
 # ========================================================
 
 class PublishingSchedule(BaseModel):
@@ -128,3 +160,14 @@ class PublishingSchedule(BaseModel):
     platform: str
     scheduled_at: Optional[datetime] = None
     auto_publish: bool = False
+
+class ContentSuiteRequest(BaseModel):
+    brand: str # jade, doctorshield, jaguartransit
+    topic: str
+    key_benefits: List[str] = Field(default_factory=list)
+    platforms: List[str] = Field(default=["linkedin", "instagram"])
+    content_types: List[str] = Field(default=["post", "reel"])
+    languages: List[str] = Field(default=["en"])
+    generate_ab_variations: bool = True
+    context_lessons: Optional[List[str]] = None
+

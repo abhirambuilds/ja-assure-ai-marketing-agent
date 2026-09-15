@@ -105,8 +105,45 @@
       "compliance_status": "failed",
       "status": "rejected",
       "compliance_score": 45.0,
-      "reason_tag": "misleading_guarantee",
+      "reason_tag": "false_guarantee",
       "notes": "Violates regulatory rules: claims 100% risk-free guarantee without mandatory underwriting disclaimers."
+    },
+    {
+      "brand": "doctorshield",
+      "platform": "blog",
+      "content_type": "article",
+      "topic": "Navigating Cross-Border Telehealth Malpractice Liabilities in Southeast Asia",
+      "content_raw": "As virtual consultations transcend national boundaries across Singapore and Malaysia, private medical practitioners face heightened regulatory complexity under updated MOH and MMC frameworks.\n\nKey Medico-Legal Safeguards:\n1. Ensuring retroactive inception cover when transitioning between clinic networks.\n2. Securing immediate access to panel malpractice defence attorneys upon notice of medical inquiry.\n3. Verifying telemedicine cross-jurisdiction endorsement riders.\n\nDoctorShield is structured exclusively for private specialist doctors and clinics.\n\n*Terms, conditions, and underwriting limits apply. Underwritten by licensed partner insurers.*",
+      "variation": "A",
+      "language": "en",
+      "compliance_status": "passed",
+      "status": "approved",
+      "compliance_score": 98.0,
+      "reason_tag": null,
+      "notes": "Comprehensive educational article approved by compliance officer."
+    },
+    {
+      "brand": "jaguartransit",
+      "platform": "x",
+      "content_type": "post",
+      "topic": "Port Congestion Supply Chain Risk",
+      "content_raw": "Port delays shouldn't endanger your high-value cargo. Standard freight contracts cap payouts to pennies per kilo.\n\nJaguar Transit provides agreed-value door-to-door vault insurance with active GPS tracking.\n\n*Terms apply. Licensed broker.*",
+      "variation": "B",
+      "language": "en",
+      "compliance_status": "passed",
+      "status": "human_review",
+      "compliance_score": 94.0,
+      "reason_tag": null,
+      "notes": "Punchy X copy awaiting human sign-off."
+    }
+  ],
+  "feedbacks": [
+    {
+      "content_index": 3,
+      "reason_tag": "false_guarantee",
+      "notes": "Absolute claims like '100% risk free guarantee' violate MAS / BNM insurance guidelines. Must use qualified policy criteria.",
+      "original_content": "Never worry about lost diamonds again! Jade offers 100% risk free guarantees on every gem without inspections.",
+      "corrected_content": "Protect your precious gemstones with Jade's agreed-value collector coverage based on certified appraisals. *Terms and conditions apply.*"
     }
   ],
   "leads": [
@@ -119,7 +156,8 @@
       "company_size": "10-25 staff",
       "fit_score": 94.0,
       "qualification_reason": "High procedural risk profile; aesthetic surgery requires specialized medical indemnity not covered by general practice insurance.",
-      "outreach_draft": "Dear Dr. Chen, noted your clinic's expansion into advanced laser treatments. Given the unique liability contours in aesthetic dermatology, DoctorShield provides tailored coverage with seamless retroactive protection. Would love to share our quick 2-minute overview.",
+      "recommended_brand": "doctorshield",
+      "outreach_draft": "Dear Dr. Chen,\n\nWe have been following Chen Aesthetic & Laser Clinic's distinguished presence in Dermatology & Aesthetic Medicine in Singapore. Given recent shifts in cosmetic inquiry volumes, maintaining comprehensive medical professional indemnity with immediate panel legal counsel is essential for career protection.\n\nDoctorShield offers tailored retroactive coverage specifically structured for private specialist clinics. We would welcome the opportunity to share our concise indemnity overview.\n\nRespectfully,\nDoctorShield Medico-Legal Partnerships",
       "source": "Singapore Medical Directory",
       "status": "qualified"
     },
@@ -132,7 +170,8 @@
       "company_size": "5-15 staff",
       "fit_score": 88.5,
       "qualification_reason": "High-value inventory showcase retailer frequently moving pieces between KL and Singapore luxury exhibitions.",
-      "outreach_draft": "Hi Marcus, noticed your upcoming exhibition showcase at Marina Bay. Our Jade & Jaguar Transit solutions provide turnkey exhibition transit and showroom vault insurance on agreed appraisal values.",
+      "recommended_brand": "jade",
+      "outreach_draft": "Dear Marcus Aurelius Tan,\n\nWe have been following Aura Gems & Haute Horlogerie's distinguished presence in Luxury Jewellery & Timepieces in Kuala Lumpur, Malaysia. As bespoke high-value collections frequently exceed conventional policy sub-limits (often capped at $2,500), Jade by JA Assure provides agreed-value protection with seamless worldwide exhibition transit.\n\nWould you be open to a brief 5-minute private conversation on protecting your clients' collector inventory?\n\nWarm regards,\nJA Assure Jade Advisory",
       "source": "Jewellery Fair Directory",
       "status": "new"
     }

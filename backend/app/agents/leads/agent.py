@@ -11,22 +11,15 @@ class LeadAgent(BaseAgent):
         super().__init__(name="lead_agent")
 
     async def run(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
-        company_info = inputs.get("company_info", "Private Clinic Network, Singapore")
-        brand = inputs.get("brand", "doctorshield")
+        brand = inputs.get("brand")
+        industry = inputs.get("industry")
 
-        self.log_event("qualify_lead", {"brand": brand, "company": company_info})
+        self.log_event("qualify_leads", {"brand": brand, "industry": industry})
 
-        prompt = (
-            f"Qualify and score this prospect for JA Assure's {brand} insurance product.\n"
-            f"Prospect info: {company_info}\n"
-            f"Determine industry fit score (0-100), qualification rationale, and draft a high-touch personalized outreach message."
-        )
-        system_prompt = "You are a B2B insurance growth specialist focusing on medical practices and luxury retailers."
+        from app.services.lead_service import lead_service
+        prospects = await lead_service.discover_and_score_leads(brand=brand, industry=industry)
 
-        lead_result: LeadProspect = llm_provider.generate_structured(
-            prompt=prompt,
-            schema=LeadProspect,
-            system_instruction=system_prompt
-        )
-
-        return lead_result.model_dump()
+        return {
+            "count": len(prospects),
+            "prospects": [p.model_dump() for p in prospects]
+        }

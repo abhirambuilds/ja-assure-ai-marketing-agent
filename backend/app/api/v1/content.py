@@ -1,0 +1,81 @@
+from typing import List, Optional
+from fastapi import APIRouter, HTTPException, Depends
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+from app.database.session import get_db
+from app.schemas.agent_contracts import (
+    ContentBrief,
+    GeneratedVariation,
+    ContentSuiteRequest,
+    VideoScript
+)
+from app.schemas.dtos import ContentQueueResponse
+from app.services.content_service import content_service
+from app.services.media_service import media_service
+from app.services.pipeline_service import pipeline_service
+
+router = APIRouter(prefix="/content", tags=["Content Generation"])
+
+class SingleContentRequest(BaseModel):
+    brand: str
+    platform: str
+    topic: str
+    content_type: str = "post"
+    language: str = "en"
+    key_benefits: Optional[List[str]] = None
+    target_persona: Optional[str] = None
+    cta: Optional[str] = None
+
+class VideoRequest(BaseModel):
+    brand: str = "jade"
+    topic: str = "Protecting bespoke jewellery collections"
+    target_duration: int = 45
+
+@router.post("/generate", response_model=List[GeneratedVariation])
+async def generate_content_variations(req: SingleContentRequest):
+    """
+    Generate A/B marketing copy variations for a single brief adhering to brand voice & active lessons.
+    """
+    brief = ContentBrief(
+        brand=req.brand,
+        platform=req.platform,
+        content_type=req.content_type,
+        topic=req.topic,
+        language=req.language,
+        key_benefits=req.key_benefits or [],
+        target_persona=req.target_persona,
+        cta=req.cta
+    )
+    try:
+        variations = await content_service.generate_variations(brief)
+        return variations
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Content generation failed: {str(e)}")
+
+@router.post("/suite", response_model=List[ContentQueueResponse])
+async def generate_content_suite(suite_req: ContentSuiteRequest):
+    """
+    Execute full 'Brain' pipeline across multiple platforms, formats, and languages.
+    Automatically applies research context, injects lessons, runs compliance gate,
+    and stages items in ContentQueue with status='human_review' (MANDATORY human sign-off).
+    """
+    try:
+        created_items = await pipeline_service.generate_content_suite(suite_req)
+        return created_items
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Content suite pipeline failed: {str(e)}")
+
+@router.post("/video", response_model=VideoScript)
+async def generate_video_script(req: VideoRequest):
+    """
+    Generate a 30-60 second structured video storyboard with scene breakdowns and voiceover.
+    """
+    try:
+        script = await media_service.generate_video_script(
+            brand=req.brand,
+            topic=req.topic,
+            target_duration=req.target_duration
+        )
+        return script
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Video script generation failed: {str(e)}")

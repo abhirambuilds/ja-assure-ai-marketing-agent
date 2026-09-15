@@ -47,8 +47,24 @@ def seed():
             db.add(LessonLearned(**l))
 
         print("Seeding Content Queue...")
+        created_items = []
         for q in data.get("content_queue", []):
-            db.add(ContentQueue(**q))
+            item = ContentQueue(**q)
+            db.add(item)
+            created_items.append(item)
+        db.flush()
+
+        print("Seeding Feedback...")
+        for fb in data.get("feedbacks", []):
+            c_idx = fb.get("content_index", 0)
+            content_id = created_items[c_idx].id if c_idx < len(created_items) else created_items[0].id
+            db.add(Feedback(
+                content_id=content_id,
+                reason_tag=fb["reason_tag"],
+                notes=fb["notes"],
+                original_content=fb["original_content"],
+                corrected_content=fb.get("corrected_content")
+            ))
 
         print("Seeding Leads...")
         for ld in data.get("leads", []):

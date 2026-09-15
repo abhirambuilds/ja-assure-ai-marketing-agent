@@ -20,6 +20,13 @@ def list_competitors(
     query = query.order_by(desc(Competitor.collected_at)).limit(limit)
     return db.execute(query).scalars().all()
 
+@router.get("/{comp_id}", response_model=CompetitorResponse)
+def get_competitor(comp_id: int, db: Session = Depends(get_db)):
+    comp = db.get(Competitor, comp_id)
+    if not comp:
+        raise HTTPException(status_code=404, detail="Competitor record not found")
+    return comp
+
 @router.post("", response_model=CompetitorResponse, status_code=201)
 def create_competitor(comp_in: CompetitorCreate, db: Session = Depends(get_db)):
     comp = Competitor(**comp_in.model_dump())

@@ -29,6 +29,7 @@ class ContentQueueBase(BaseModel):
     compliance_score: float = 0.0
     reason_tag: Optional[str] = None
     notes: Optional[str] = None
+    metadata_json: Optional[str] = None
 
 class ContentQueueCreate(ContentQueueBase):
     pass
@@ -46,6 +47,7 @@ class ContentQueueUpdate(BaseModel):
     compliance_score: Optional[float] = None
     reason_tag: Optional[str] = None
     notes: Optional[str] = None
+    metadata_json: Optional[str] = None
 
 class ContentQueueResponse(ContentQueueBase):
     id: int
@@ -62,7 +64,9 @@ class CompetitorBase(BaseModel):
     title: str
     summary: str
     detected_change: Optional[str] = None
+    actionable_recommendation: Optional[str] = None
     relevance: float = 0.5
+    source: str = "public_web"
 
 class CompetitorCreate(CompetitorBase):
     pass
@@ -83,6 +87,7 @@ class LeadBase(BaseModel):
     company_size: Optional[str] = None
     fit_score: float = 0.0
     qualification_reason: Optional[str] = None
+    recommended_brand: Optional[str] = None
     outreach_draft: Optional[str] = None
     source: Optional[str] = "prospecting"
     status: str = "new"
@@ -143,14 +148,22 @@ class DashboardSummary(BaseModel):
     total_content: int
     pending_compliance: int
     pending_human_review: int
-    approved: int
+    compliance_approved: int
+    human_approved: int
+    approved: int # alias to human_approved
     rejected: int
+    edited: int = 0
     published: int
+    rejection_rate: float
     average_compliance_score: float
     total_leads: int
+    average_lead_score: float
     total_lessons_learned: int
+    regeneration_count: int = 0
     brand_breakdown: Dict[str, int]
     platform_breakdown: Dict[str, int]
+    language_breakdown: Dict[str, int]
+    feedback_reason_frequency: Dict[str, int]
 
 # ----------------- Publishing DTOs -----------------
 class PublishingRecordBase(BaseModel):

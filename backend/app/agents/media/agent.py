@@ -11,22 +11,16 @@ class MediaAgent(BaseAgent):
 
     async def run(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
         brand = inputs.get("brand", "jade")
-        concept = inputs.get("concept", "Jewellery burglary protection")
-        format_type = inputs.get("format_type", "reel") # reel, carousel, video
+        concept = inputs.get("concept", "High-value protection overview")
+        target_duration = inputs.get("target_duration", 45)
 
-        self.log_event("generate_media_brief", {"brand": brand, "format": format_type})
+        self.log_event("generate_media_script", {"brand": brand, "concept": concept})
 
-        prompt = (
-            f"Generate a {format_type} storyboard and visual media prompt for {brand}.\n"
-            f"Concept: {concept}\n"
-            f"Provide scene-by-scene script (3 scenes), on-screen text, audio cue, and image generation prompt."
+        from app.services.media_service import media_service
+        script = await media_service.generate_video_script(
+            brand=brand,
+            topic=concept,
+            target_duration=target_duration
         )
-        system_prompt = "You are a creative video director for short-form social media (Reels, TikTok, Shorts)."
 
-        brief_text = llm_provider.generate_text(prompt, system_instruction=system_prompt)
-
-        return {
-            "brand": brand,
-            "format_type": format_type,
-            "storyboard": brief_text
-        }
+        return script.model_dump()

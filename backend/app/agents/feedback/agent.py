@@ -12,27 +12,27 @@ class FeedbackAgent(BaseAgent):
         super().__init__(name="feedback_agent")
 
     async def run(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
+        content_id = inputs.get("content_id", 0)
         reason_tag = inputs.get("reason_tag", "unspecified")
         notes = inputs.get("notes", "")
         original = inputs.get("original_content", "")
         corrected = inputs.get("corrected_content", "")
 
-        self.log_event("process_feedback", {"reason_tag": reason_tag})
+        self.log_event("process_feedback", {"reason_tag": reason_tag, "content_id": content_id})
 
-        prompt = (
-            f"Extract a generalized 'Lesson Learned' guideline from this human review intervention:\n"
-            f"Tag: {reason_tag}\n"
-            f"Reviewer Notes: {notes}\n"
-            f"Original Copy: {original}\n"
-            f"Human Corrected Copy: {corrected}\n\n"
-            f"Synthesize an actionable rule that future AI generation prompts should adhere to."
-        )
-        system_prompt = "You are a machine learning feedback engineer extracting behavioral rules from human feedback."
-
-        lesson: LessonLearned = llm_provider.generate_structured(
-            prompt=prompt,
-            schema=LessonLearned,
-            system_instruction=system_prompt
+        from app.services.lessons_service import lessons_service
+        lesson = lessons_service.record_feedback_and_synthesize(
+            content_id=content_id,
+            reason_tag=reason_tag,
+            notes=notes,
+            original_content=original,
+            corrected_content=corrected
         )
 
-        return lesson.model_dump()
+        return {
+            "status": "success",
+            "lesson_id": lesson.id,
+            "category": lesson.category,
+            "lesson": lesson.lesson,
+            "frequency": lesson.frequency
+        }

@@ -2,9 +2,13 @@ import type {
   ContentQueueItem,
   Competitor,
   Lead,
+  Feedback,
   LessonLearned,
   DashboardSummary,
-  HealthCheckResponse
+  HealthCheckResponse,
+  GeneratedVariation,
+  VideoScript,
+  ComplianceResult
 } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
@@ -18,62 +22,191 @@ async function handleResponse<T>(res: Response): Promise<T> {
 }
 
 export const api = {
+  // System Health
   getHealth: async (): Promise<HealthCheckResponse> => {
     const res = await fetch(`${API_BASE_URL}/health`);
     return handleResponse<HealthCheckResponse>(res);
   },
 
+  // Analytics
   getDashboardSummary: async (): Promise<DashboardSummary> => {
     const res = await fetch(`${API_BASE_URL}/analytics/summary`);
     return handleResponse<DashboardSummary>(res);
   },
 
-  getQueue: async (params?: { brand?: string; status?: string }): Promise<ContentQueueItem[]> => {
+  // Content Queue & Human Review
+  getQueue: async (params?: { brand?: string; platform?: string; status?: string; compliance_status?: string }): Promise<ContentQueueItem[]> => {
     const query = new URLSearchParams();
-    if (params?.brand) query.append('brand', params.brand);
-    if (params?.status) query.append('status', params.status);
+    if (params?.brand && params.brand !== 'all') query.append('brand', params.brand);
+    if (params?.platform && params.platform !== 'all') query.append('platform', params.platform);
+    if (params?.status && params.status !== 'all') query.append('status', params.status);
+    if (params?.compliance_status && params.compliance_status !== 'all') query.append('compliance_status', params.compliance_status);
     const res = await fetch(`${API_BASE_URL}/queue?${query.toString()}`);
     return handleResponse<ContentQueueItem[]>(res);
   },
 
-  getCompetitors: async (): Promise<Competitor[]> => {
-    const res = await fetch(`${API_BASE_URL}/competitors`);
-    return handleResponse<Competitor[]>(res);
+  getQueueItem: async (id: number): Promise<ContentQueueItem> => {
+    const res = await fetch(`${API_BASE_URL}/queue/${id}`);
+    return handleResponse<ContentQueueItem>(res);
   },
 
-  getLeads: async (): Promise<Lead[]> => {
-    const res = await fetch(`${API_BASE_URL}/leads`);
-    return handleResponse<Lead[]>(res);
+  approveContent: async (id: number, notes?: string): Promise<ContentQueueItem> => {
+    const query = notes ? `?notes=${encodeURIComponent(notes)}` : '';
+    const res = await fetch(`${API_BASE_URL}/queue/${id}/approve${query}`, { method: 'POST' });
+    return handleResponse<ContentQueueItem>(res);
   },
 
-  getLessons: async (): Promise<LessonLearned[]> => {
-    const res = await fetch(`${API_BASE_URL}/lessons`);
-    return handleResponse<LessonLearned[]>(res);
+  rejectContent: async (id: number, reasonTag: string, notes: string): Promise<ContentQueueItem> => {
+    const res = await fetch(`${API_BASE_URL}/queue/${id}/reject`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason_tag: reasonTag, notes }),
+    });
+    return handleResponse<ContentQueueItem>(res);
   },
 
-  reviewContent: async (
-    contentId: number,
-    action: 'approve' | 'reject' | 'edit',
-    data?: { notes?: string; reason_tag?: string; corrected_content?: string }
-  ): Promise<ContentQueueItem> => {
-    const res = await fetch(`${API_BASE_URL}/queue/${contentId}/review`, {
+  editContent: async (id: number, editedContent: string, reasonTag?: string, notes?: string): Promise<ContentQueueItem> => {
+    const res = await fetch(`${API_BASE_URL}/queue/${id}/edit`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        content_id: contentId,
-        action,
-        ...data,
+        edited_content: editedContent,
+        reason_tag: reasonTag || 'human_edit',
+        notes: notes || 'Edited and verified by reviewer'
       }),
     });
     return handleResponse<ContentQueueItem>(res);
   },
 
-  runAgent: async (agentName: string, payload: Record<string, any>): Promise<any> => {
-    const res = await fetch(`${API_BASE_URL}/agents/run/${agentName}`, {
+  rewriteContent: async (id: number): Promise<ContentQueueItem> => {
+    const res = await fetch(`${API_BASE_URL}/queue/${id}/rewrite`, { method: 'POST' });
+    return handleResponse<ContentQueueItem>(res);
+  },
+
+  regenerateContent: async (id: number): Promise<ContentQueueItem> => {
+    const res = await fetch(`${API_BASE_URL}/queue/${id}/regenerate`, { method: 'POST' });
+    return handleResponse<ContentQueueItem>(res);
+  },
+
+  // Content Generation
+  generateVariations: async (payload: {
+    brand: string;
+    platform: string;
+    topic: string;
+    content_type?: string;
+    language?: string;
+    key_benefits?: string[];
+    target_persona?: string;
+    cta?: string;
+  }): Promise<GeneratedVariation[]> => {
+    const res = await fetch(`${API_BASE_URL}/content/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    return handleResponse<GeneratedVariation[]>(res);
+  },
+
+  generateSuite: async (payload: {
+    brand: string;
+    topic: string;
+    platforms: string[];
+    content_types: string[];
+    languages: string[];
+    key_benefits?: string[];
+  }): Promise<ContentQueueItem[]> => {
+    const res = await fetch(`${API_BASE_URL}/content/suite`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    return handleResponse<ContentQueueItem[]>(res);
+  },
+
+  generateVideoScript: async (payload: {
+    brand: string;
+    topic: string;
+    target_duration?: number;
+  }): Promise<VideoScript> => {
+    const res = await fetch(`${API_BASE_URL}/content/video`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    return handleResponse<VideoScript>(res);
+  },
+
+  // Compliance
+  checkCompliance: async (payload: { brand: string; content_text: string; content_type?: string }): Promise<ComplianceResult> => {
+    const res = await fetch(`${API_BASE_URL}/compliance/check`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    return handleResponse<ComplianceResult>(res);
+  },
+
+  // Competitor & Research
+  getCompetitors: async (): Promise<Competitor[]> => {
+    const res = await fetch(`${API_BASE_URL}/competitors`);
+    return handleResponse<Competitor[]>(res);
+  },
+
+  runResearch: async (payload: { brand: string; topic: string; competitor_url?: string }): Promise<any> => {
+    const res = await fetch(`${API_BASE_URL}/research/run`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
     return handleResponse<any>(res);
+  },
+
+  scrapeUrl: async (url: string): Promise<any> => {
+    const res = await fetch(`${API_BASE_URL}/research/scrape`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url }),
+    });
+    return handleResponse<any>(res);
+  },
+
+  // Leads
+  getLeads: async (params?: { industry?: string; status?: string }): Promise<Lead[]> => {
+    const query = new URLSearchParams();
+    if (params?.industry) query.append('industry', params.industry);
+    if (params?.status) query.append('status', params.status);
+    const res = await fetch(`${API_BASE_URL}/leads?${query.toString()}`);
+    return handleResponse<Lead[]>(res);
+  },
+
+  discoverLeads: async (payload: { brand?: string; industry?: string }): Promise<any> => {
+    const res = await fetch(`${API_BASE_URL}/leads/discover`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    return handleResponse<any>(res);
+  },
+
+  generateLeadOutreach: async (leadId: number): Promise<any> => {
+    const res = await fetch(`${API_BASE_URL}/leads/${leadId}/outreach`, { method: 'POST' });
+    return handleResponse<any>(res);
+  },
+
+  // Lessons Learned & Feedback
+  getLessons: async (category?: string): Promise<LessonLearned[]> => {
+    const query = category ? `?category=${category}` : '';
+    const res = await fetch(`${API_BASE_URL}/lessons${query}`);
+    return handleResponse<LessonLearned[]>(res);
+  },
+
+  toggleLesson: async (lessonId: number): Promise<LessonLearned> => {
+    const res = await fetch(`${API_BASE_URL}/lessons/${lessonId}/toggle`, { method: 'PATCH' });
+    return handleResponse<LessonLearned>(res);
+  },
+
+  getFeedback: async (): Promise<Feedback[]> => {
+    const res = await fetch(`${API_BASE_URL}/feedback`);
+    return handleResponse<Feedback[]>(res);
   }
 };

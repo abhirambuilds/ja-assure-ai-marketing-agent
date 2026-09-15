@@ -25,6 +25,7 @@ class ContentQueue(Base):
     compliance_score: Mapped[float] = mapped_column(Float, default=0.0)
     reason_tag: Mapped[Optional[str]] = mapped_column(String(100), nullable=True) # compliance or rejection reason
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    metadata_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True) # video script, prompt metadata, etc.
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, onupdate=utc_now)
 
@@ -48,7 +49,9 @@ class Competitor(Base):
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     summary: Mapped[str] = mapped_column(Text, nullable=False)
     detected_change: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    actionable_recommendation: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     relevance: Mapped[float] = mapped_column(Float, default=0.5)
+    source: Mapped[str] = mapped_column(String(100), default="public_web")
     collected_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
 
 
@@ -56,7 +59,7 @@ class Lead(Base):
     __tablename__ = "leads"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
-    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    name: Mapped[str] = mapped_column(String(100), nullable=False) # Contact / Key Person
     company: Mapped[str] = mapped_column(String(150), index=True, nullable=False)
     industry: Mapped[str] = mapped_column(String(100), index=True, nullable=False)
     email: Mapped[Optional[str]] = mapped_column(String(150), nullable=True)
@@ -64,6 +67,7 @@ class Lead(Base):
     company_size: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     fit_score: Mapped[float] = mapped_column(Float, default=0.0) # 0 to 100
     qualification_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    recommended_brand: Mapped[Optional[str]] = mapped_column(String(50), nullable=True) # jade, doctorshield, jaguartransit
     outreach_draft: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     source: Mapped[Optional[str]] = mapped_column(String(100), default="prospecting")
     status: Mapped[str] = mapped_column(String(50), default="new", index=True) # new, contacted, qualified, converted, archived

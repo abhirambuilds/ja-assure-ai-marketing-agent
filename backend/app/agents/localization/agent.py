@@ -14,20 +14,16 @@ class LocalizationAgent(BaseAgent):
         text = inputs.get("text", "")
         target_lang = inputs.get("target_lang", "ms")
         brand = inputs.get("brand", "jade")
+        source_lang = inputs.get("source_lang", "en")
 
         self.log_event("localize_content", {"target_lang": target_lang, "brand": brand})
 
-        prompt = (
-            f"Localize this marketing content for JA Assure's {brand} brand into {target_lang}. "
-            f"Maintain local regulatory standards, idioms, and high converting nuance.\n\n"
-            f"Original text:\n{text}"
+        from app.services.localization_service import localization_service
+        result = await localization_service.localize_content(
+            text=text,
+            target_lang=target_lang,
+            brand=brand,
+            source_lang=source_lang
         )
-        system_prompt = f"You are an insurance localization specialist for language code: {target_lang}."
 
-        localized_text = llm_provider.generate_text(prompt, system_instruction=system_prompt)
-
-        return {
-            "target_lang": target_lang,
-            "original_text": text,
-            "localized_text": localized_text
-        }
+        return result.model_dump()
