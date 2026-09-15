@@ -1,0 +1,140 @@
+{
+  "competitors": [
+    {
+      "name": "BriteProtect Jewellers",
+      "url": "https://briteprotect.example.com",
+      "category": "jewellery",
+      "title": "BriteProtect launches instant ring appraisal add-on",
+      "summary": "Competitor introduced instant mobile photo appraisal for luxury bespoke rings up to $50,000.",
+      "detected_change": "New low-friction mobile onboarding process targeting younger bridal segment.",
+      "relevance": 0.85
+    },
+    {
+      "name": "MedShield Indemnity Group",
+      "url": "https://medshield.example.com",
+      "category": "medical",
+      "title": "Telehealth coverage expansion announcement",
+      "summary": "Updated medical malpractice coverage to specifically include cross-border tele-consultations.",
+      "detected_change": "Lower premiums for private telemedicine specialists in Southeast Asia.",
+      "relevance": 0.90
+    },
+    {
+      "name": "CargoSafe Global",
+      "url": "https://cargosafe.example.com",
+      "category": "transit",
+      "title": "High-value electronics transit rider",
+      "summary": "Aggressive advertising campaign highlighting semiconductor and luxury watch transit security.",
+      "detected_change": "Offering 24-hour claims settlement for high-value air cargo losses.",
+      "relevance": 0.78
+    }
+  ],
+  "lessons_learned": [
+    {
+      "category": "compliance",
+      "lesson": "Never use absolute claim words like '100% Guaranteed Payout' or 'Never Denied'. Regulators in SG & MY mandate 'Subject to policy underwriting criteria and exclusions'.",
+      "examples": "Rejected: 'Guaranteed total loss protection'. Approved: 'Comprehensive high-value coverage with transparent claim guidelines.'",
+      "frequency": 8,
+      "active": true
+    },
+    {
+      "category": "tone",
+      "lesson": "DoctorShield content should address medical specialists with clinical empathy and precision, avoiding sensationalist medical malpractice fear-mongering.",
+      "examples": "Preferred: 'Protecting your career and reputation so you can focus on patient care.'",
+      "frequency": 5,
+      "active": true
+    },
+    {
+      "category": "disclaimer",
+      "lesson": "Every post referencing premium rates or instant quotes must include the standard insurance intermediary disclaimer.",
+      "examples": "Disclaimer: 'JA Assure is an authorized insurance broker. Terms, conditions, and underwriting limits apply.'",
+      "frequency": 12,
+      "active": true
+    }
+  ],
+  "content_queue": [
+    {
+      "brand": "jade",
+      "platform": "instagram",
+      "content_type": "carousel",
+      "topic": "Why homeowner insurance often caps luxury jewelry claims at $2,500",
+      "content_raw": "Most homeowners assume their heirloom watches and diamond rings are fully protected under standard home policies. The reality? Many standard policies cap unscheduled jewellery claims at just $2,500.\n\nWith Jade Jewellery Insurance, each piece is insured at agreed collector value with worldwide transit protection.\n\nProtect what matters. Link in bio.\n\n*Terms and conditions apply. Underwritten by licensed partner insurers.*",
+      "variation": "A",
+      "language": "en",
+      "compliance_status": "passed",
+      "status": "approved",
+      "compliance_score": 96.5,
+      "reason_tag": "verified_accurate_caps",
+      "notes": "Reviewed and approved for scheduling."
+    },
+    {
+      "brand": "doctorshield",
+      "platform": "linkedin",
+      "content_type": "post",
+      "topic": "Telemedicine medico-legal liabilities in 2026",
+      "content_raw": "As virtual consultations become the standard of care across Southeast Asia, cross-jurisdictional medical malpractice risks are rising.\n\nDoctorShield provides dedicated medical indemnity tailored for telemedicine practitioners, including retroactive protection and immediate panel legal counsel.\n\nEnsure your practice is covered before your next remote consultation.",
+      "variation": "A",
+      "language": "en",
+      "compliance_status": "passed",
+      "status": "human_review",
+      "compliance_score": 92.0,
+      "reason_tag": null,
+      "notes": "Pending medical compliance officer sign-off."
+    },
+    {
+      "brand": "jaguartransit",
+      "platform": "linkedin",
+      "content_type": "post",
+      "topic": "Securing cross-border diamond shipments against port transit delays",
+      "content_raw": "Port congestions shouldn't compromise precious cargo security. Jaguar Transit offers door-to-door vault-grade transit insurance with GPS escort tracking.",
+      "variation": "B",
+      "language": "en",
+      "compliance_status": "pending",
+      "status": "pending",
+      "compliance_score": 0.0,
+      "reason_tag": null,
+      "notes": "Awaiting automated compliance analysis."
+    },
+    {
+      "brand": "jade",
+      "platform": "facebook",
+      "content_type": "post",
+      "topic": "100% Risk Free Diamond Protection",
+      "content_raw": "Never worry about lost diamonds again! Jade offers 100% risk free guarantees on every gem without inspections.",
+      "variation": "A",
+      "language": "en",
+      "compliance_status": "failed",
+      "status": "rejected",
+      "compliance_score": 45.0,
+      "reason_tag": "misleading_guarantee",
+      "notes": "Violates regulatory rules: claims 100% risk-free guarantee without mandatory underwriting disclaimers."
+    }
+  ],
+  "leads": [
+    {
+      "name": "Dr. Sarah Chen",
+      "company": "Chen Aesthetic & Laser Clinic",
+      "industry": "Dermatology & Aesthetic Medicine",
+      "email": "dr.chen@chenclinic.sg",
+      "location": "Singapore",
+      "company_size": "10-25 staff",
+      "fit_score": 94.0,
+      "qualification_reason": "High procedural risk profile; aesthetic surgery requires specialized medical indemnity not covered by general practice insurance.",
+      "outreach_draft": "Dear Dr. Chen, noted your clinic's expansion into advanced laser treatments. Given the unique liability contours in aesthetic dermatology, DoctorShield provides tailored coverage with seamless retroactive protection. Would love to share our quick 2-minute overview.",
+      "source": "Singapore Medical Directory",
+      "status": "qualified"
+    },
+    {
+      "name": "Marcus Aurelius Tan",
+      "company": "Aura Gems & Haute Horlogerie",
+      "industry": "Luxury Jewellery & Timepieces",
+      "email": "marcus@auragems.my",
+      "location": "Kuala Lumpur, Malaysia",
+      "company_size": "5-15 staff",
+      "fit_score": 88.5,
+      "qualification_reason": "High-value inventory showcase retailer frequently moving pieces between KL and Singapore luxury exhibitions.",
+      "outreach_draft": "Hi Marcus, noticed your upcoming exhibition showcase at Marina Bay. Our Jade & Jaguar Transit solutions provide turnkey exhibition transit and showroom vault insurance on agreed appraisal values.",
+      "source": "Jewellery Fair Directory",
+      "status": "new"
+    }
+  ]
+}
