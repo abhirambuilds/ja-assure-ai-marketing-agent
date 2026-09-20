@@ -5,7 +5,8 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6.svg?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS-v4-38B2AC.svg?logo=tailwind-css&logoColor=white)](https://tailwindcss.com)
 [![Python](https://img.shields.io/badge/Python-3.13+-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)
-[![Google Gemini](https://img.shields.io/badge/Google_Gemini-1.5_Pro-4285F4.svg?logo=google&logoColor=white)](https://ai.google.dev/)
+[![Groq](https://img.shields.io/badge/Groq-LLaMA_3.3_70B-F55036.svg?logo=groq&logoColor=white)](https://groq.com/)
+[![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-3ECF8E.svg?logo=supabase&logoColor=white)](https://supabase.com/)
 [![Tests](https://img.shields.io/badge/Tests-19%20Passed-success.svg)](#-verification--automated-tests)
 
 > **An autonomous, multi-brand agentic marketing, regulatory compliance, and lead intelligence platform for JA Assure across Southeast Asia.**
@@ -56,10 +57,10 @@ JA Assure manages specialized, high-value insurance portfolios across Singapore,
 The **JA Assure AI Marketing Agent** deploys an integrated multi-agent system ("The Brain") built around a strict compliance safety net and closed-loop feedback memory:
 
 - **Research Agent**: Collects competitor movements, insurance industry updates, and localized regulatory notices.
-- **Content Agent**: Drafts campaign briefs into platform-optimized copy with A/B variation angles (ROI vs. Emotional Peace of Mind), pulling relevant lessons learned directly from the database.
+- **Content Agent**: Drafts campaign briefs into platform-optimized copy with A/B variation angles (ROI vs. Emotional Peace of Mind), pulling relevant lessons learned directly from Supabase PostgreSQL.
 - **Compliance Gate (6-Rule Hybrid Engine)**: Evaluates content against statutory criteria, detects prohibited superlatives ("100% covered", "best in SG"), verifies mandatory disclaimers, and outputs an objective 0–100 compliance score.
 - **Mandatory Human Review Center**: Prevents unauthorized automated publishing. Marketers can **Approve**, **Reject** with categorized reasons, **Edit** inline, or trigger a **1-Click AI Compliance Rewrite**.
-- **Closed-Loop Feedback Agent**: Converts human rejection reasons and diff edits into generalized, brand-scoped persistent rules stored in SQLite, feeding back into future prompt generations.
+- **Closed-Loop Feedback Agent**: Converts human rejection reasons and diff edits into generalized, brand-scoped persistent rules stored in Supabase PostgreSQL, feeding back into future prompt generations.
 - **Lead Intelligence Agent**: Evaluates B2B prospects across 5 transparent criteria (0–100 Fit Score) and crafts personalized outreach sequences referencing prospect pain points.
 
 ---
@@ -76,8 +77,8 @@ The **JA Assure AI Marketing Agent** deploys an integrated multi-agent system ("
 | 🎬 **Video / Reels Storyboarder** | Generates 30–60 second multi-scene video scripts complete with visual cues, voiceover scripts, on-screen text overlays, and audio direction. |
 | 🎯 **Lead Intelligence & Scoring** | 5-factor scoring algorithm (0–100) evaluating Industry Fit, Risk Exposure, Premium Capacity, Geographic Fit, and Digital Footprint. |
 | 📊 **Real-Time Analytics** | Complete executive dashboard tracking content lifecycle metrics, compliance distribution, rejection causes, and learning metrics. |
-| 📅 **Simulated Publishing Dispatch Preview** | Human-controlled scheduling workflow storing records in SQLite with strict human approval gates. Explicitly simulated with zero external social API claims. |
-| 📴 **Offline Deterministic Fallback** | Seamlessly operates in full interactive demo mode when Google Gemini API keys are absent or network is restricted. |
+| 📅 **Simulated Publishing Dispatch Preview** | Human-controlled scheduling workflow storing records in Supabase PostgreSQL with strict human approval gates. Explicitly simulated with zero external social API claims. |
+| 📴 **Offline Deterministic Fallback** | Seamlessly operates in full interactive demo mode when Groq API keys are absent or network is restricted. |
 
 ---
 
@@ -87,12 +88,12 @@ The **JA Assure AI Marketing Agent** deploys an integrated multi-agent system ("
 flowchart TD
     subgraph Research & Memory
         R[Research Agent] -->|Competitor & Market Context| CS[Content Service]
-        LL[(Lessons Learned DB)] -->|Historical Rejection Rules| CS
+        LL[(Supabase PostgreSQL)] -->|Historical Rejection Rules| CS
     end
 
     subgraph Content Studio
         Brief[User Campaign Brief] --> CS
-        CS -->|Prompt Assembly + Gemini 1.5| Gen[Generated Variations A/B]
+        CS -->|Prompt Assembly + Groq LLaMA 3.3| Gen[Generated Variations A/B]
         Gen --> CG[Compliance Gate Evaluator]
     end
 
@@ -124,7 +125,7 @@ flowchart TD
    - `RULE-04-SUPERLATIVE`: Excessive claims ("best insurer", "number one").
    - `RULE-05-PREMIUM-FINANCING`: High-risk financial advisories.
    - `RULE-06-UNAUTHORIZED-ADVICE`: Direct medical or legal recommendations.
-3. **PENDING HUMAN REVIEW**: Stored in SQLite queue. **Never auto-approved**.
+3. **PENDING HUMAN REVIEW**: Stored in Supabase queue. **Never auto-approved**.
 4. **HUMAN DECISION**:
    - **Approve**: Marked `approved`, timestamped, queued for publishing.
    - **Reject**: Captures reviewer note, extracts category, updates `lessons_learned`.
@@ -138,9 +139,9 @@ flowchart TD
 ### Backend
 - **Framework**: [FastAPI](https://fastapi.tiangolo.com/) (Python 3.13)
 - **Data Validation & Schemas**: [Pydantic v2](https://docs.pydantic.dev/latest/)
-- **ORM & Database**: [SQLAlchemy 2.0](https://www.sqlalchemy.org/) with SQLite
-- **LLM Orchestration**: Google Gemini 1.5 Pro (`google-generativeai`) with resilient fallback provider
-- **Testing**: Pytest with `fastapi.testclient` (16 automated tests)
+- **ORM & Database**: [SQLAlchemy 2.0](https://www.sqlalchemy.org/) with [Supabase](https://supabase.com/) PostgreSQL (`psycopg` psycopg3 binary driver)
+- **LLM Orchestration**: [Groq](https://groq.com/) API (`llama-3.3-70b-versatile`) with structured JSON mode and resilient offline fallback
+- **Testing**: Pytest with `fastapi.testclient` (19 automated tests)
 
 ### Frontend
 - **Framework**: [React 19](https://react.dev/) + [Vite](https://vitejs.dev/)
@@ -176,7 +177,31 @@ ja-assure-ai-marketing-agent/
 │   │   │   └── analytics_service.py    # Metric aggregations & KPI calculation
 │   │   ├── api/v1/                     # 11 REST API routers
 │   │   └── agents/                     # Specialized agent adapters
-│   ├── tests/                          # 16 unit & integration tests
+├── database/
+│   └── supabase_schema.sql             # Complete Supabase PostgreSQL DDL
+├── backend/
+│   ├── app/
+│   │   ├── main.py                     # FastAPI application & lifespan startup/seed
+│   │   ├── config.py                   # Pydantic Settings & environment variables
+│   │   ├── database/                   # Supabase PostgreSQL session & connection pool
+│   │   ├── models/
+│   │   │   └── entities.py             # 7 SQLAlchemy ORM models
+│   │   ├── schemas/
+│   │   │   ├── agent_contracts.py      # Strict agent interface contracts
+│   │   │   └── dtos.py                 # REST API Request/Response DTOs
+│   │   ├── services/
+│   │   │   ├── pipeline_service.py     # "The Brain" Central Orchestrator
+│   │   │   ├── content_service.py      # Smart generation with lesson injection
+│   │   │   ├── compliance_service.py   # 6-rule hybrid compliance engine
+│   │   │   ├── lessons_service.py      # Feedback synthesis & prompt injection
+│   │   │   ├── research_service.py     # Market & competitor scraper
+│   │   │   ├── lead_service.py         # 5-factor lead scoring & outreach
+│   │   │   ├── localization_service.py # 5 Southeast Asian language handler
+│   │   │   ├── media_service.py        # Video/Reels storyboard pipeline
+│   │   │   └── analytics_service.py    # Metric aggregations & KPI calculation
+│   │   ├── api/v1/                     # 11 REST API routers
+│   │   └── agents/                     # Specialized agent adapters
+│   ├── tests/                          # 19 unit & integration tests
 │   ├── requirements.txt
 │   └── pytest.ini
 ├── frontend/
@@ -189,7 +214,7 @@ ja-assure-ai-marketing-agent/
 │   │   │   ├── competitors/            # Intelligence radar & market whitespace
 │   │   │   ├── leads/                  # 5-factor scoring & B2B prospect discovery
 │   │   │   ├── learning/               # Closed-loop AI memory & prompt injection
-│   │   │   ├── analytics/              # Live SQLite metrics & SVG charts
+│   │   │   ├── analytics/              # Live Supabase metrics & SVG charts
 │   │   │   └── common/                 # Modals (Publishing, Rejection, Edit, Lead)
 │   │   ├── services/
 │   │   │   └── api.ts                  # Axios/Fetch API client wrapper
@@ -201,9 +226,8 @@ ja-assure-ai-marketing-agent/
 │   ├── package.json
 │   └── vite.config.ts
 ├── data/
-│   ├── seed/
-│   │   └── seed_data.json              # Realistic seed records for all brands
-│   └── ja_assure.db                    # Auto-generated SQLite database
+│   └── seed/
+│       └── seed_data.json              # Realistic seed records for all brands
 ├── scripts/
 │   ├── seed_db.py                      # Database reset & seeding utility
 │   ├── start_backend.bat               # One-click backend launcher (Windows)
@@ -220,28 +244,39 @@ ja-assure-ai-marketing-agent/
 ### Prerequisites
 - **Python**: 3.11 or higher
 - **Node.js**: v18 or higher (v20+ recommended) & npm
+- **Supabase Account**: [https://supabase.com](https://supabase.com) (free cloud PostgreSQL)
 
-### Quick Launch (2-Step)
+### Quick Launch (3-Step)
 
-#### Step 1: Start Backend API Server
+#### Step 1: Initialize Supabase PostgreSQL Database
+1. Create a new project in your [Supabase Dashboard](https://supabase.com/dashboard).
+2. Go to the **SQL Editor** in the left sidebar.
+3. Open and copy the entire contents of [`database/supabase_schema.sql`](database/supabase_schema.sql).
+4. Paste and click **Run**. All 7 production tables, foreign keys, triggers, and indexes are created.
+5. In Supabase **Project Settings → Database**, copy your connection string (URI format with password).
+
+#### Step 2: Start Backend API Server
 ```powershell
 # 1. Create and activate Python virtual environment
 python -m venv backend\venv
 backend\venv\Scripts\activate
 
-# 2. Install backend dependencies
+# 2. Install backend dependencies (Groq, psycopg3, FastAPI, SQLAlchemy 2.0)
 pip install -r backend\requirements.txt
 
-# 3. Seed database with rich sample data (Jade, DoctorShield, Jaguar Transit)
+# 3. Configure backend/.env
+# Set DATABASE_URL and GROQ_API_KEY (optional: fallback active if empty)
+
+# 4. Seed database with rich sample data (Jade, DoctorShield, Jaguar Transit)
 python scripts\seed_db.py
 
-# 4. Start FastAPI server (Runs on port 8000)
+# 5. Start FastAPI server (Runs on port 8000)
 uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port 8000 --reload
 ```
 *Backend is now live at:* **`http://127.0.0.1:8000`**  
 *Interactive Swagger UI:* **`http://127.0.0.1:8000/docs`**
 
-#### Step 2: Start Frontend Dashboard
+#### Step 3: Start Frontend Dashboard
 Open a new terminal window:
 ```powershell
 cd frontend
@@ -254,21 +289,25 @@ npm run dev
 
 ## 🔑 8. Environment Variables
 
-Create `.env` in `backend/` (optional; system includes full offline demo mode if no key is provided):
+Create `.env` in `backend/` (optional; system includes full offline demo mode if no API key is provided):
 
 ```env
-# Google Gemini API Key (Leave empty to use built-in intelligent fallback provider)
-GEMINI_API_KEY=your_gemini_api_key_here
-GEMINI_MODEL=gemini-1.5-pro
+# Supabase PostgreSQL Database Connection String
+# Example: postgresql+psycopg://postgres:[YOUR-PASSWORD]@db.[YOUR-PROJECT-REF].supabase.co:5432/postgres
+# Or Transaction Pooler: postgresql+psycopg://postgres.[YOUR-PROJECT-REF]:[YOUR-PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres
+DATABASE_URL=postgresql+psycopg://postgres:your_supabase_password_here@db.your_supabase_project_ref.supabase.co:5432/postgres
+
+# Groq API Configuration (Leave empty to use built-in intelligent fallback provider)
+GROQ_API_KEY=your_groq_api_key_here
+GROQ_MODEL=llama-3.3-70b-versatile
 
 # Server Configuration
 ENVIRONMENT=development
 PORT=8000
 HOST=127.0.0.1
 DEBUG=True
-
-# SQLite Database
-DATABASE_URL=sqlite:///./data/ja_assure.db
+LOG_LEVEL=INFO
+DEFAULT_BRANDS=jade,doctorshield,jaguartransit
 ```
 
 ---
@@ -280,7 +319,7 @@ DATABASE_URL=sqlite:///./data/ja_assure.db
 backend\venv\Scripts\pytest -c backend\pytest.ini backend\tests -v
 ```
 **Test Coverage Includes:**
-- System health checks
+- System health checks & Groq provider validation
 - Competitor intelligence scraping & relevance retrieval
 - Smart content generation with persistent lesson injection & A/B variants
 - Compliance violation detection & automated compliance rewrite
@@ -306,7 +345,7 @@ Follow this step-by-step sequence to demo the full platform to evaluators:
 
 ### Step A: Executive Dashboard (`/`)
 1. View overall content counts: Pending Review, Approved, Rejected.
-2. Observe the **System Compliance Score** (87%) and active **Learned Rules** (8 active lessons).
+2. Observe the **System Compliance Score** and active **Learned Rules** dynamically queried from Supabase.
 3. Review recent activity feeds and quick-action shortcuts.
 
 ### Step B: Content Studio (`Content Studio` tab)
@@ -315,8 +354,8 @@ Follow this step-by-step sequence to demo the full platform to evaluators:
 3. **Draft Campaign**: Enter a brief:
    > *"Announce tailored medical indemnity policy updates for aesthetic clinic surgeons in Singapore with 24/7 legal counsel."*
 4. **Click "Generate with AI Agent"**:
-   - System retrieves market context and active lessons from SQLite.
-   - Generates structured copy with both **Angle A (Professional / ROI)** and **Angle B (Peace of Mind / Empathy)**.
+   - System retrieves market context and active lessons from Supabase.
+   - Generates structured copy via Groq LLaMA 3.3 with both **Angle A (Professional / ROI)** and **Angle B (Peace of Mind / Empathy)**.
    - Evaluates compliance in real time and automatically pushes to the **Review Center**.
 
 ### Step C: Review Center (`Review Center` tab)
@@ -335,8 +374,8 @@ Follow this step-by-step sequence to demo the full platform to evaluators:
 2. Notice your rejection was converted into a structured **Lesson Learned**:
    - Categorized as `regulatory_compliance`.
    - Frequency count incremented.
-   - Tagged to the specific brand.
-3. Generate new content in the Content Studio: notice this new lesson is automatically injected into the generation prompt to prevent recurrence!
+   - Stored in Supabase and tagged to the specific brand.
+3. Generate new content in the Content Studio: notice this new lesson is automatically injected into the Groq generation prompt to prevent recurrence!
 
 ### Step E: Lead Intelligence (`Leads` tab)
 1. View B2B prospects scored 0–100 across 5 objective metrics.
@@ -345,13 +384,13 @@ Follow this step-by-step sequence to demo the full platform to evaluators:
 
 ### Step F: Competitors & Analytics (`Competitors` and `Analytics` tabs)
 1. **Competitor Intelligence**: Review scraped competitor movements, pricing shifts, and recommended JA Assure counter-strategies.
-2. **Analytics**: Inspect real-time compliance score distribution, rejection breakdown by reason, and continuous learning velocity.
+2. **Analytics**: Inspect real-time compliance score distribution, rejection breakdown by reason, and continuous learning velocity from Supabase PostgreSQL.
 
 ### Step G: Human-Controlled Publishing Dispatch Preview (`Review Center` → Approved Tab)
 1. In the **Review Center**, switch to the **Approved** filter.
 2. Only human-approved drafts feature the **"Schedule Dispatch Preview"** action (pending and rejected content cannot be scheduled).
 3. Click **"Schedule Dispatch Preview"** to inspect the simulated platform card, verify destination routing, select target date/time, and confirm.
-4. The dispatch record is persisted in SQLite with status `scheduled`.
+4. The dispatch record is persisted in Supabase with status `scheduled`.
 5. View scheduled dispatches and operational logs under the **Analytics** workspace, with full capability to cancel or reschedule. Notice the explicit governance disclaimer: *"SIMULATED DISPATCH — No external post has been published."*
 
 ---
@@ -365,7 +404,7 @@ To preserve enterprise trust and transparent evaluation during hackathon judging
    - The platform deliberately does not claim client-side raw MP4 video rendering, positioning itself as the creative AI director and cue sheet generator for production teams.
 
 2. **Simulated Publishing Dispatch (Strict Governance Gate)**:
-   - The Publishing Preview operates as a human-controlled simulation environment. All scheduled dispatches are persisted in SQLite with state transitions (`scheduled`, `cancelled`).
+   - The Publishing Preview operates as a human-controlled simulation environment. All scheduled dispatches are persisted in Supabase PostgreSQL with state transitions (`scheduled`, `cancelled`).
    - Third-party social media OAuth connections (e.g., live LinkedIn or Meta Graph APIs) are intentionally disabled to guarantee that no unvetted marketing copy is ever pushed to live public channels.
 
 3. **Ethical B2B Lead Prospecting (No Fabricated Contact Info)**:
@@ -373,7 +412,7 @@ To preserve enterprise trust and transparent evaluation during hackathon judging
    - The platform explicitly marks prospects as `AI-GENERATED PROSPECT` and never fabricates private phone numbers or personal emails as verified third-party data.
 
 4. **Resilient AI Failover (Dual-Mode Execution)**:
-   - When configured with a valid `GEMINI_API_KEY`, the agent calls live Google Gemini 1.5 Pro models.
+   - When configured with a valid `GROQ_API_KEY`, the agent calls live Groq LLaMA 3.3 models (`llama-3.3-70b-versatile`).
    - In environments without active credentials, the system automatically falls back to deterministic mock generators, clearly labeled as `Offline Demo Fallback` rather than masquerading as live AI.
 
 ---

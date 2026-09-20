@@ -72,7 +72,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
           </p>
         </div>
         <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-1 rounded-full w-fit">
-          SQLite Telemetry Synchronized
+          Supabase Telemetry Synchronized
         </span>
       </div>
 
@@ -454,7 +454,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
           <div>
             <h3 className="font-bold text-sm text-slate-100 flex items-center gap-2">
               <Calendar className="w-4 h-4 text-cyan-400" />
-              Simulated Publishing Dispatch Log (SQLite Records)
+              Simulated Publishing Dispatch Log (Supabase Records)
             </h3>
             <p className="text-xs text-slate-400">
               Human-approved content staged for simulated publishing. No live social API keys are triggered.

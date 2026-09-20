@@ -106,7 +106,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Sidebar Footer — Operational & Engine Status */}
       <div className="p-4 border-t border-slate-800/80 bg-slate-950/60 space-y-3">
-        {/* Gemini AI Status Card */}
+        {/* Groq AI Status Card */}
         <div className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800 space-y-1.5">
           <div className="flex items-center justify-between text-[11px]">
             <span className="text-slate-400 font-medium flex items-center gap-1.5">
@@ -114,17 +114,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
               AI Intelligence
             </span>
             <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${
-              health?.llm_mode === 'gemini_live' 
+              health?.llm_mode?.includes('live') 
                 ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
                 : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
             }`}>
-              {health?.llm_mode === 'gemini_live' ? 'GEMINI LIVE' : 'OFFLINE MODE'}
+              {health?.llm_mode?.includes('live') ? 'GROQ LIVE' : 'OFFLINE MODE'}
             </span>
           </div>
 
           <div className="flex items-center justify-between text-[10px] text-slate-500 font-mono">
             <span>Model Engine</span>
-            <span className="text-slate-300">gemini-1.5-pro</span>
+            <span className="text-slate-300">{health?.llm_model || 'llama-3.3-70b'}</span>
           </div>
         </div>
 

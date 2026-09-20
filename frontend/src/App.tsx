@@ -238,7 +238,7 @@ export function App() {
         platform: scheduledPlatform,
         scheduled_at: scheduledTime ? new Date(scheduledTime).toISOString() : undefined
       });
-      showToast(`✓ Simulated dispatch scheduled for ${scheduledPlatform.toUpperCase()}! Stored in SQLite.`);
+      showToast(`✓ Simulated dispatch scheduled for ${scheduledPlatform.toUpperCase()}! Stored in Supabase.`);
       setPublishingModalItem(null);
       fetchAllData();
     } catch (err: any) {

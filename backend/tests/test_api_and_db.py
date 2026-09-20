@@ -20,6 +20,8 @@ def test_health_endpoint():
     data = response.json()
     assert data["status"] == "healthy"
     assert data["database"] == "connected"
+    assert data["llm_provider"] == "Groq"
+    assert "llm_mode" in data
 
 def test_list_queue():
     response = client.get("/api/v1/queue")

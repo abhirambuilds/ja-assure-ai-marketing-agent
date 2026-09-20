@@ -150,7 +150,7 @@ export const LearningView: React.FC<LearningViewProps> = ({
             Human Review Audit History Log ({feedbacks.length})
           </h3>
           <span className="text-[11px] font-mono text-slate-400">
-            Source Audit Records Stored in SQLite
+            Source Audit Records Stored in Supabase PostgreSQL
           </span>
         </div>
 

@@ -352,7 +352,7 @@ class ResearchService:
                     system_instruction=system_instruction
                 )
                 ai_finding.source_type = "AI_ANALYSIS"
-                ai_finding.source = "Gemini Market Intelligence Synthesis"
+                ai_finding.source = "Groq Market Intelligence Synthesis"
                 findings.append(ai_finding)
 
                 comp_insights.append(

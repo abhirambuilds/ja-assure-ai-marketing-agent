@@ -184,6 +184,9 @@ export interface HealthCheckResponse {
   app_name: string;
   environment: string;
   database: string;
+  database_type?: string;
+  llm_provider?: string;
+  llm_model?: string;
   llm_mode: string;
   supported_brands: string[];
 }

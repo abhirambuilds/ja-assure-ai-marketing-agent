@@ -10,75 +10,94 @@ logger = logging.getLogger("ja_assure.llm")
 class LLMProvider:
     """
     Unified LLM provider interface.
-    Supports Google Gemini API when GEMINI_API_KEY is configured,
+    Powered by Groq API when GROQ_API_KEY is configured,
     and falls back to deterministic mock/demo responses when running in dev/demo mode
     without external API credentials.
     """
 
     def __init__(self, api_key: Optional[str] = None, model_name: Optional[str] = None):
-        self.api_key = api_key or settings.GEMINI_API_KEY
-        self.model_name = model_name or settings.GEMINI_MODEL
-        self._gemini_client = None
+        self.api_key = api_key or settings.GROQ_API_KEY
+        self.model_name = model_name or settings.GROQ_MODEL
+        self.provider_name = "Groq"
+        self._groq_client = None
         self._initialize_client()
 
     def _initialize_client(self):
         if self.api_key:
             try:
-                import google.generativeai as genai
-                genai.configure(api_key=self.api_key)
-                self._gemini_client = genai.GenerativeModel(self.model_name)
-                logger.info(f"Gemini client initialized with model: {self.model_name}")
+                from groq import Groq
+                self._groq_client = Groq(api_key=self.api_key)
+                logger.info(f"Groq client initialized with model: {self.model_name}")
             except Exception as e:
-                logger.warning(f"Failed to initialize Gemini client: {e}. Falling back to mock mode.")
-                self._gemini_client = None
+                logger.warning(f"Failed to initialize Groq client: {e}. Falling back to mock mode.")
+                self._groq_client = None
         else:
-            logger.info("No GEMINI_API_KEY provided; operating in demo/mock provider mode.")
+            logger.info("No GROQ_API_KEY provided; operating in demo/mock provider mode.")
 
     @property
     def is_live(self) -> bool:
-        return self._gemini_client is not None
+        return self._groq_client is not None
 
     def generate_text(self, prompt: str, system_instruction: Optional[str] = None) -> str:
         """
-        Generate plain text response.
+        Generate plain text response via Groq chat completions.
         """
         if self.is_live:
             try:
-                full_prompt = f"System Instruction: {system_instruction}\n\nUser: {prompt}" if system_instruction else prompt
-                response = self._gemini_client.generate_content(full_prompt)
-                return response.text
+                messages = []
+                if system_instruction:
+                    messages.append({"role": "system", "content": system_instruction})
+                messages.append({"role": "user", "content": prompt})
+
+                completion = self._groq_client.chat.completions.create(
+                    model=self.model_name,
+                    messages=messages,
+                    temperature=0.7,
+                )
+                return completion.choices[0].message.content or ""
             except Exception as e:
-                logger.error(f"Gemini API call failed: {e}. Fallback triggered.")
-        
+                logger.error(f"Groq API call failed: {e}. Fallback triggered.")
+
         # Fallback / Demo mode output
         return f"[Demo Mode Output for prompt: {prompt[:80]}...]"
 
     def generate_structured(self, prompt: str, schema: Type[BaseModel], system_instruction: Optional[str] = None) -> BaseModel:
         """
-        Generate structured output adhering to a Pydantic schema.
+        Generate structured output adhering to a Pydantic schema using Groq JSON mode.
         """
         if self.is_live:
             try:
                 schema_json = json.dumps(schema.model_json_schema(), indent=2)
-                structured_prompt = (
-                    f"{system_instruction or ''}\n\n"
-                    f"Respond ONLY with valid JSON conforming to this schema:\n{schema_json}\n\n"
-                    f"Task:\n{prompt}\n\n"
-                    f"JSON Response:"
+                system_content = (
+                    f"{system_instruction or 'You are an enterprise InsurTech AI marketing assistant.'}\n\n"
+                    f"You MUST respond ONLY with valid JSON conforming to this JSON schema:\n{schema_json}"
                 )
-                response = self._gemini_client.generate_content(structured_prompt)
-                raw_text = response.text.strip()
-                if raw_text.startswith("```json"):
-                    raw_text = raw_text[7:]
-                if raw_text.startswith("```"):
-                    raw_text = raw_text[3:]
-                if raw_text.endswith("```"):
-                    raw_text = raw_text[:-3]
-                raw_text = raw_text.strip()
-                data = json.loads(raw_text)
+                messages = [
+                    {"role": "system", "content": system_content},
+                    {"role": "user", "content": prompt}
+                ]
+
+                completion = self._groq_client.chat.completions.create(
+                    model=self.model_name,
+                    messages=messages,
+                    temperature=0.3,
+                    response_format={"type": "json_object"}
+                )
+
+                raw_text = completion.choices[0].message.content or "{}"
+                clean_json = raw_text.strip()
+                if clean_json.startswith("```json"):
+                    clean_json = clean_json[7:]
+                if clean_json.startswith("```"):
+                    clean_json = clean_json[3:]
+                if clean_json.endswith("```"):
+                    clean_json = clean_json[:-3]
+                clean_json = clean_json.strip()
+
+                data = json.loads(clean_json)
                 return schema.model_validate(data)
             except Exception as e:
-                logger.error(f"Failed structured Gemini generation: {e}. Falling back to schema mock.")
+                logger.error(f"Failed structured Groq generation: {e}. Falling back to schema mock.")
 
         # In mock / demo mode, return default construct if available or basic mock
         return self._generate_fallback_mock(schema, prompt)
@@ -105,7 +124,7 @@ class LLMProvider:
                 dummy_data[name] = f"Demo generated {name} for query"
             else:
                 dummy_data[name] = None
-        
+
         try:
             return schema.model_validate(dummy_data)
         except Exception:

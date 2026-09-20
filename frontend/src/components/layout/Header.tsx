@@ -38,7 +38,7 @@ const tabMeta: Record<string, { title: string; subtitle: string }> = {
   },
   analytics: {
     title: 'Operational Governance Analytics',
-    subtitle: 'Live SQLite KPIs, regulatory pass rates, compliance health bands, and simulated dispatch activity.'
+    subtitle: 'Live Supabase KPIs, regulatory pass rates, compliance health bands, and simulated dispatch activity.'
   }
 };
 
@@ -92,7 +92,7 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="hidden sm:flex items-center gap-2 text-xs px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 font-mono">
             <span className={`w-2 h-2 rounded-full ${health ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400'}`} />
             <span className="text-slate-300 text-[11px]">
-              {health?.llm_mode === 'gemini_live' ? 'Gemini 1.5' : 'Offline Safe'}
+              {health?.llm_mode?.includes('live') ? 'Groq LLaMA 3.3' : 'Offline Safe'}
             </span>
           </div>
 

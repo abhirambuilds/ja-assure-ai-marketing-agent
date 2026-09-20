@@ -17,12 +17,12 @@ class Settings(BaseSettings):
         "http://127.0.0.1:3000",
     ]
 
-    # Database URL
-    DATABASE_URL: str = "sqlite:///./data/ja_assure.db"
+    # Database URL (Supabase PostgreSQL)
+    DATABASE_URL: str = "postgresql+psycopg://postgres:postgres@localhost:5432/postgres"
 
-    # LLM Settings
-    GEMINI_API_KEY: str = ""
-    GEMINI_MODEL: str = "gemini-1.5-pro"
+    # LLM Settings (Groq API)
+    GROQ_API_KEY: str = ""
+    GROQ_MODEL: str = "llama-3.3-70b-versatile"
 
     # Logging
     LOG_LEVEL: str = "INFO"

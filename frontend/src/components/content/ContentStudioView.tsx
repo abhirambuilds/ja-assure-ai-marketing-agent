@@ -140,7 +140,7 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
                 className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition-all cursor-pointer disabled:opacity-50"
               >
                 <Sparkles className="w-3.5 h-3.5 text-slate-950" />
-                {isGenerating ? 'Synthesizing with Gemini...' : isVideoMode ? 'Generate AI Video Storyboard' : 'Generate A/B Variations'}
+                {isGenerating ? 'Synthesizing with Groq...' : isVideoMode ? 'Generate AI Video Storyboard' : 'Generate A/B Variations'}
               </button>
 
               <button
@@ -212,9 +212,9 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
                 <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-300 flex items-center justify-center mx-auto">
                   <Sparkles className="w-5 h-5 animate-spin text-amber-400" />
                 </div>
-                <h4 className="text-sm font-bold text-slate-100">Synthesizing Persona Copy with Gemini 1.5 Pro</h4>
+                <h4 className="text-sm font-bold text-slate-100">Synthesizing Persona Copy with Groq LLaMA 3.3</h4>
                 <p className="text-xs text-slate-400 max-w-sm mx-auto">
-                  Querying SQLite lessons learned, filtering competitor positioning, and running deterministic MAS/MOH compliance check...
+                  Querying Supabase lessons learned, filtering competitor positioning, and running deterministic MAS/MOH compliance check...
                 </p>
               </div>
             )}

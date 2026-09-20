@@ -21,6 +21,9 @@ def health_check(db: Session = Depends(get_db)):
         "app_name": settings.APP_NAME,
         "environment": settings.ENVIRONMENT,
         "database": db_status,
-        "llm_mode": "gemini_live" if llm_provider.is_live else "demo_mock_mode",
+        "database_type": "postgresql" if "postgres" in settings.DATABASE_URL.lower() else "sqlite",
+        "llm_provider": llm_provider.provider_name,
+        "llm_model": llm_provider.model_name,
+        "llm_mode": "groq_live" if llm_provider.is_live else "demo_mock_mode",
         "supported_brands": settings.DEFAULT_BRANDS,
     }
