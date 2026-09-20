@@ -20,6 +20,11 @@ class Settings(BaseSettings):
     # Database URL (Supabase PostgreSQL)
     DATABASE_URL: str = "postgresql+psycopg://postgres:postgres@localhost:5432/postgres"
 
+    # Supabase Project Credentials
+    SUPABASE_URL: str = ""
+    SUPABASE_ANON_KEY: str = ""
+    SUPABASE_SERVICE_ROLE_KEY: str = ""
+
     # LLM Settings (Groq API)
     GROQ_API_KEY: str = ""
     GROQ_MODEL: str = "groq/compound"
