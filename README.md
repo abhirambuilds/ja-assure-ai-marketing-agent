@@ -31,7 +31,8 @@
 8. [Environment Variables](#-8-environment-variables)
 9. [Verification & Automated Tests](#-9-verification--automated-tests)
 10. [End-to-End Demo Walkthrough](#-10-end-to-end-demo-walkthrough)
-11. [GitHub Repository](#-11-github-repository)
+11. [Intentional Prototype Scope & Guardrails](#-11-intentional-prototype-scope--guardrails)
+12. [GitHub Repository](#-12-github-repository)
 
 ---
 
@@ -180,14 +181,23 @@ ja-assure-ai-marketing-agent/
 │   └── pytest.ini
 ├── frontend/
 │   ├── src/
-│   │   ├── components/                 # Reusable UI widgets
+│   │   ├── components/                 # Modular InsurTech Command Center components
+│   │   │   ├── layout/                 # Sidebar & Header navigation
+│   │   │   ├── dashboard/              # Executive command center & workflow visualizer
+│   │   │   ├── content/                # 3-column AI Content Studio
+│   │   │   ├── review/                 # Compliance Review Center & control gates
+│   │   │   ├── competitors/            # Intelligence radar & market whitespace
+│   │   │   ├── leads/                  # 5-factor scoring & B2B prospect discovery
+│   │   │   ├── learning/               # Closed-loop AI memory & prompt injection
+│   │   │   ├── analytics/              # Live SQLite metrics & SVG charts
+│   │   │   └── common/                 # Modals (Publishing, Rejection, Edit, Lead)
 │   │   ├── services/
 │   │   │   └── api.ts                  # Axios/Fetch API client wrapper
 │   │   ├── types/
 │   │   │   └── index.ts                # TypeScript domain models
-│   │   ├── App.tsx                     # Main AI SaaS Command Center (7 Views)
+│   │   ├── App.tsx                     # Main AI SaaS Orchestrator (7 Views)
 │   │   ├── main.tsx                    # React DOM root
-│   │   └── index.css                   # Tailwind v4 directives & custom themes
+│   │   └── index.css                   # Tailwind v4 directives & gold design system
 │   ├── package.json
 │   └── vite.config.ts
 ├── data/
@@ -346,9 +356,32 @@ Follow this step-by-step sequence to demo the full platform to evaluators:
 
 ---
 
-## 🔗 11. GitHub Repository
+## 🛡️ 11. Intentional Prototype Scope & Guardrails
+
+To preserve enterprise trust and transparent evaluation during hackathon judging, the platform explicitly enforces the following architectural guardrails:
+
+1. **AI Video / Reels Storyboards (No False MP4 Rendering Claims)**:
+   - The media agent generates structured production cue sheets and scene-by-scene storyboards (0–6s hooks, visual descriptions, voiceover scripts, on-screen text overlays, and statutory disclaimers).
+   - The platform deliberately does not claim client-side raw MP4 video rendering, positioning itself as the creative AI director and cue sheet generator for production teams.
+
+2. **Simulated Publishing Dispatch (Strict Governance Gate)**:
+   - The Publishing Preview operates as a human-controlled simulation environment. All scheduled dispatches are persisted in SQLite with state transitions (`scheduled`, `cancelled`).
+   - Third-party social media OAuth connections (e.g., live LinkedIn or Meta Graph APIs) are intentionally disabled to guarantee that no unvetted marketing copy is ever pushed to live public channels.
+
+3. **Ethical B2B Lead Prospecting (No Fabricated Contact Info)**:
+   - Discovered leads and enriched prospects are generated using business intelligence analysis and algorithmic 5-factor scoring (Industry Fit, Company Profile, Geographic Fit, Product Relevance, Insurance Need).
+   - The platform explicitly marks prospects as `AI-GENERATED PROSPECT` and never fabricates private phone numbers or personal emails as verified third-party data.
+
+4. **Resilient AI Failover (Dual-Mode Execution)**:
+   - When configured with a valid `GEMINI_API_KEY`, the agent calls live Google Gemini 1.5 Pro models.
+   - In environments without active credentials, the system automatically falls back to deterministic mock generators, clearly labeled as `Offline Demo Fallback` rather than masquerading as live AI.
+
+---
+
+## 🔗 12. GitHub Repository
 
 - **Repository**: [https://github.com/abhirambuilds/ja-assure-ai-marketing-agent.git](https://github.com/abhirambuilds/ja-assure-ai-marketing-agent.git)
 - **Branch**: `main`
 - **License**: MIT
 - **Author**: Abhi Ram Reddy (`abhirambuilds`)
+
