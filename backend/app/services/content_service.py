@@ -175,6 +175,9 @@ class ContentService:
                     schema=GeneratedVariation,
                     system_instruction=system_prompt
                 )
+                generated_var.variation_label = label
+                if persona["disclaimer"] not in generated_var.content_text and "terms" not in generated_var.content_text.lower():
+                    generated_var.content_text = f"{generated_var.content_text}\n\n{persona['disclaimer']}"
                 variations.append(generated_var)
             else:
                 # Deterministic high-quality fallback copy

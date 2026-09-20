@@ -43,20 +43,28 @@ class LLMProvider:
         Generate plain text response via Groq chat completions.
         """
         if self.is_live:
-            try:
-                messages = []
-                if system_instruction:
-                    messages.append({"role": "system", "content": system_instruction})
-                messages.append({"role": "user", "content": prompt})
+            messages = []
+            if system_instruction:
+                messages.append({"role": "system", "content": system_instruction})
+            messages.append({"role": "user", "content": prompt})
 
-                completion = self._groq_client.chat.completions.create(
-                    model=self.model_name,
-                    messages=messages,
-                    temperature=0.7,
-                )
-                return completion.choices[0].message.content or ""
-            except Exception as e:
-                logger.error(f"Groq API call failed: {e}. Fallback triggered.")
+            for attempt in range(2):
+                try:
+                    completion = self._groq_client.chat.completions.create(
+                        model=self.model_name,
+                        messages=messages,
+                        temperature=0.7,
+                        max_completion_tokens=2048
+                    )
+                    return completion.choices[0].message.content or ""
+                except Exception as e:
+                    if "429" in str(e) and attempt == 0:
+                        logger.warning("Groq rate limit encountered. Retrying in 2.5s...")
+                        import time
+                        time.sleep(2.5)
+                        continue
+                    logger.error(f"Groq API call failed: {e}. Fallback triggered.")
+                    break
 
         # Fallback / Demo mode output
         return f"[Demo Mode Output for prompt: {prompt[:80]}...]"
@@ -66,38 +74,46 @@ class LLMProvider:
         Generate structured output adhering to a Pydantic schema using Groq JSON mode.
         """
         if self.is_live:
-            try:
-                schema_json = json.dumps(schema.model_json_schema(), indent=2)
-                system_content = (
-                    f"{system_instruction or 'You are an enterprise InsurTech AI marketing assistant.'}\n\n"
-                    f"You MUST respond ONLY with valid JSON conforming to this JSON schema:\n{schema_json}"
-                )
-                messages = [
-                    {"role": "system", "content": system_content},
-                    {"role": "user", "content": prompt}
-                ]
+            schema_json = json.dumps(schema.model_json_schema(), indent=2)
+            system_content = (
+                f"{system_instruction or 'You are an enterprise InsurTech AI marketing assistant.'}\n\n"
+                f"You MUST respond ONLY with valid JSON conforming to this JSON schema:\n{schema_json}"
+            )
+            messages = [
+                {"role": "system", "content": system_content},
+                {"role": "user", "content": prompt}
+            ]
 
-                completion = self._groq_client.chat.completions.create(
-                    model=self.model_name,
-                    messages=messages,
-                    temperature=0.3,
-                    response_format={"type": "json_object"}
-                )
+            for attempt in range(2):
+                try:
+                    completion = self._groq_client.chat.completions.create(
+                        model=self.model_name,
+                        messages=messages,
+                        temperature=0.3,
+                        response_format={"type": "json_object"},
+                        max_completion_tokens=2048
+                    )
 
-                raw_text = completion.choices[0].message.content or "{}"
-                clean_json = raw_text.strip()
-                if clean_json.startswith("```json"):
-                    clean_json = clean_json[7:]
-                if clean_json.startswith("```"):
-                    clean_json = clean_json[3:]
-                if clean_json.endswith("```"):
-                    clean_json = clean_json[:-3]
-                clean_json = clean_json.strip()
+                    raw_text = completion.choices[0].message.content or "{}"
+                    clean_json = raw_text.strip()
+                    if clean_json.startswith("```json"):
+                        clean_json = clean_json[7:]
+                    if clean_json.startswith("```"):
+                        clean_json = clean_json[3:]
+                    if clean_json.endswith("```"):
+                        clean_json = clean_json[:-3]
+                    clean_json = clean_json.strip()
 
-                data = json.loads(clean_json)
-                return schema.model_validate(data)
-            except Exception as e:
-                logger.error(f"Failed structured Groq generation: {e}. Falling back to schema mock.")
+                    data = json.loads(clean_json)
+                    return schema.model_validate(data)
+                except Exception as e:
+                    if "429" in str(e) and attempt == 0:
+                        logger.warning("Groq rate limit encountered. Retrying in 2.5s...")
+                        import time
+                        time.sleep(2.5)
+                        continue
+                    logger.error(f"Failed structured Groq generation: {e}. Falling back to schema mock.")
+                    break
 
         # In mock / demo mode, return default construct if available or basic mock
         return self._generate_fallback_mock(schema, prompt)
@@ -121,7 +137,12 @@ class LLMProvider:
             elif "float" in annotation:
                 dummy_data[name] = 95.0
             elif "str" in annotation:
-                dummy_data[name] = f"Demo generated {name} for query"
+                if name == "variation_label":
+                    dummy_data[name] = "B" if "variation: b" in prompt.lower() else "A"
+                elif name == "content_text":
+                    dummy_data[name] = "JA Assure tailored insurance advisory copy.\n\n*Terms, conditions, and underwriting limits apply.*"
+                else:
+                    dummy_data[name] = f"Demo generated {name} for query"
             else:
                 dummy_data[name] = None
 
