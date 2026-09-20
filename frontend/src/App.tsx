@@ -201,6 +201,8 @@ export function App() {
         const script = await api.generateVideoScript({
           brand: studioBrand,
           topic: studioTopic,
+          platform: studioPlatform,
+          language: studioLanguage,
           target_duration: 45
         });
         setVideoScript(script);
@@ -622,33 +624,57 @@ export function App() {
               {/* Video Script Display if Reel */}
               {videoScript && (
                 <div className="glass-panel p-6 rounded-2xl border border-slate-800 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <span className="text-xs font-mono text-cyan-400 font-semibold uppercase">Video / Reels Storyboard</span>
-                      <h3 className="text-base font-bold text-slate-100">{videoScript.concept}</h3>
-                      <p className="text-xs text-slate-400">Target Duration: {videoScript.target_duration_seconds}s • Tone: {videoScript.voiceover_tone}</p>
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-mono text-cyan-400 font-semibold uppercase tracking-wider">AI Video / Reels Storyboard</span>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                          {videoScript.media_status === 'ai_storyboard_generated' ? 'AI Generated Storyboard' : videoScript.media_status}
+                        </span>
+                      </div>
+                      <h3 className="text-lg font-bold text-slate-100">{videoScript.title || videoScript.concept}</h3>
+                      <p className="text-xs text-slate-400">
+                        Target Duration: <span className="text-slate-200 font-medium">{videoScript.target_duration_seconds}s</span> • 
+                        Platform: <span className="text-slate-200 font-medium">{videoScript.target_platform || studioPlatform}</span> • 
+                        Tone: <span className="text-slate-200 font-medium">{videoScript.voiceover_tone}</span>
+                      </p>
                     </div>
-                    <span className="px-2.5 py-1 rounded-full text-xs font-mono bg-blue-500/20 text-cyan-300 border border-blue-500/30">
-                      {videoScript.media_status}
-                    </span>
                   </div>
+
+                  {videoScript.hook && (
+                    <div className="p-3 bg-cyan-950/40 border border-cyan-800/50 rounded-xl text-xs text-cyan-200">
+                      <span className="font-semibold text-cyan-400 font-mono uppercase tracking-wide mr-2">Opening Hook:</span>
+                      "{videoScript.hook}"
+                    </div>
+                  )}
 
                   <div className="space-y-3">
                     {videoScript.scenes.map(scene => (
                       <div key={scene.scene_number} className="bg-slate-900/80 p-3.5 rounded-xl border border-slate-800/80 space-y-1.5 text-xs">
                         <div className="flex items-center justify-between text-slate-400 font-mono">
                           <span className="font-semibold text-slate-200">Scene {scene.scene_number}</span>
-                          <span>{scene.duration_seconds} seconds</span>
+                          <span className="text-cyan-400 font-mono">{scene.duration_seconds}s</span>
                         </div>
                         <p><strong className="text-slate-400">Visual:</strong> {scene.visual_description}</p>
                         <p><strong className="text-slate-400">Voiceover:</strong> "{scene.voiceover}"</p>
-                        <p className="text-cyan-300 font-mono"><strong className="text-slate-400">On-Screen:</strong> [{scene.onscreen_text}]</p>
+                        <p className="text-cyan-300 font-mono"><strong className="text-slate-400">On-Screen Text:</strong> [{scene.onscreen_text}]</p>
+                        {scene.transition && (
+                          <p className="text-slate-400 font-mono text-[11px]"><strong className="text-slate-500">Transition:</strong> {scene.transition}</p>
+                        )}
+                        {scene.compliance_disclaimer && (
+                          <p className="text-amber-400/90 text-[11px] bg-amber-950/20 px-2 py-1 rounded border border-amber-800/30">
+                            <strong>Compliance Note:</strong> {scene.compliance_disclaimer}
+                          </p>
+                        )}
                       </div>
                     ))}
                   </div>
 
-                  <div className="text-xs text-slate-400 italic bg-slate-900/60 p-3 rounded-xl border border-slate-800">
-                    {videoScript.disclaimer}
+                  <div className="text-xs text-slate-400 italic bg-slate-900/60 p-3 rounded-xl border border-slate-800 space-y-1">
+                    <p>{videoScript.disclaimer}</p>
+                    <p className="text-[10px] text-slate-500 font-mono not-italic">
+                      ℹ️ Production cue sheet & AI storyboard format. Actual video rendering is not executed.
+                    </p>
                   </div>
                 </div>
               )}

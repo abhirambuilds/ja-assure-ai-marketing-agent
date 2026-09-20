@@ -96,12 +96,19 @@ class ContentService:
         if platform_clean in ["reel", "video"]:
             script = await media_service.generate_video_script(
                 brand=brand_clean,
-                topic=brief.topic
+                topic=brief.topic,
+                platform=platform_clean,
+                language=brief.language,
+                target_audience=brief.target_persona,
+                active_lessons=active_lessons,
+                research_context=research_text
             )
             # Format as variation A & B
+            hook_text = f"\nHook: {script.hook}\n" if script.hook else ""
             var_a_text = (
-                f"🎬 [VIDEO SCRIPT - Emotional & Trust Hook - 45s]\n"
-                f"Concept: {script.concept}\n"
+                f"🎬 [VIDEO SCRIPT - Emotional & Trust Hook - {script.target_duration_seconds}s]\n"
+                f"Title: {script.title or script.concept}\n"
+                f"Concept: {script.concept}{hook_text}"
                 f"Tone: {script.voiceover_tone}\n\n"
                 + "\n\n".join([f"Scene {s.scene_number} ({s.duration_seconds}s):\nVisual: {s.visual_description}\nVO: \"{s.voiceover}\"\nOn-Screen: [{s.onscreen_text}]" for s in script.scenes])
                 + f"\n\nCTA: {script.cta}\n\n{script.disclaimer}"

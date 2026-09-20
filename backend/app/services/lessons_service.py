@@ -37,6 +37,7 @@ class LessonsService:
     Closed-loop feedback and lessons learned engine.
     Ingests human review rejections/edits, tracks frequency, synthesizes generalized rules,
     and dynamically supplies active guidelines to the content generation pipeline.
+    Uses Gemini structured reasoning when live, and falls back to category templates offline.
     """
 
     def record_feedback_and_synthesize(
@@ -49,7 +50,7 @@ class LessonsService:
     ) -> LessonLearned:
         db = SessionLocal()
         try:
-            # 1. Record Feedback
+            # 1. Record Feedback Audit Log
             feedback = Feedback(
                 content_id=content_id,
                 reason_tag=reason_tag,
@@ -59,27 +60,48 @@ class LessonsService:
             )
             db.add(feedback)
 
-            # 2. Check if this reason tag already has an active lesson
+            # 2. Extract brand/platform context from content item
+            content_item = db.get(ContentQueue, content_id)
+            brand = content_item.brand if content_item else "general"
+            platform = content_item.platform if content_item else "general"
+
+            # 3. AI-Powered Lesson Synthesis (or Deterministic Fallback)
+            synthesized_rule = self._synthesize_lesson_rule(
+                brand=brand,
+                platform=platform,
+                reason_tag=reason_tag,
+                notes=notes,
+                original_content=original_content,
+                corrected_content=corrected_content
+            )
+
+            # 4. Check if this reviewer-selected category already has an active lesson
+            # NOTE: Reviewer-selected reason_tag is ALWAYS authoritative for category and frequency tracking.
             existing_lesson = db.execute(
                 select(LessonLearned).where(LessonLearned.category == reason_tag)
             ).scalars().first()
 
+            note_snippet = f"Reviewer: {notes}" if notes else "Correction logged"
+            new_example = f"Original: {original_content[:100]}... | {note_snippet}"
+            if corrected_content:
+                new_example += f" | Fixed: {corrected_content[:100]}..."
+
             if existing_lesson:
                 existing_lesson.frequency += 1
-                if notes and notes not in (existing_lesson.examples or ""):
-                    existing_lesson.examples = f"{existing_lesson.examples or ''} | Note: {notes}"[:500]
+                # Update with latest synthesized rule for continuous improvement
+                if synthesized_rule:
+                    existing_lesson.lesson = synthesized_rule
+                if new_example and new_example not in (existing_lesson.examples or ""):
+                    existing_lesson.examples = f"{existing_lesson.examples or ''} || {new_example}"[:600]
                 db.commit()
                 db.refresh(existing_lesson)
                 lesson_record = existing_lesson
+                logger.info(f"Updated existing lesson [{reason_tag}] (Frequency {existing_lesson.frequency}x)")
             else:
-                synthesized_text = CATEGORY_LESSON_TEMPLATES.get(
-                    reason_tag,
-                    f"Guideline from human reviewer: {notes}"
-                )
                 new_lesson = LessonLearned(
-                    category=reason_tag,
-                    lesson=synthesized_text,
-                    examples=f"Original flagged excerpt: {original_content[:120]}... Reviewer note: {notes}",
+                    category=reason_tag, # Authoritative category from reviewer
+                    lesson=synthesized_rule,
+                    examples=new_example[:600],
                     frequency=1,
                     active=True
                 )
@@ -87,6 +109,7 @@ class LessonsService:
                 db.commit()
                 db.refresh(new_lesson)
                 lesson_record = new_lesson
+                logger.info(f"Synthesized new active lesson [{reason_tag}]: {synthesized_rule}")
 
             return lesson_record
         except Exception as e:
@@ -95,6 +118,67 @@ class LessonsService:
             raise e
         finally:
             db.close()
+
+    def _synthesize_lesson_rule(
+        self,
+        brand: str,
+        platform: str,
+        reason_tag: str,
+        notes: str,
+        original_content: str,
+        corrected_content: Optional[str] = None
+    ) -> str:
+        """
+        Synthesizes a concise, reusable editorial rule using Gemini if available,
+        falling back to category templates when offline.
+        """
+        # Fallback template definition
+        fallback_rule = CATEGORY_LESSON_TEMPLATES.get(
+            reason_tag,
+            f"Adhere to human reviewer guidance: {notes}" if notes else f"Strictly avoid copy flagged under {reason_tag}."
+        )
+
+        from app.services.llm_provider import llm_provider
+        if llm_provider.is_live:
+            try:
+                from app.schemas.agent_contracts import SynthesizedLesson
+                correction_context = f"\nHuman Reviewer Corrected Text:\n\"{corrected_content}\"\n" if corrected_content else ""
+
+                prompt = (
+                    f"You are the Senior Editorial Governance & Compliance Director for JA Assure ({brand.title()}).\n"
+                    f"A human reviewer has rejected or corrected a marketing post on {platform.upper()}.\n\n"
+                    f"CONTEXT:\n"
+                    f"- Brand: {brand.title()}\n"
+                    f"- Platform: {platform}\n"
+                    f"- Rejection Reason Category: {reason_tag}\n"
+                    f"- Reviewer Notes & Guidance: {notes or 'Flagged during human review'}\n\n"
+                    f"Original Flagged Copy:\n\"{original_content}\"\n"
+                    f"{correction_context}\n"
+                    f"TASK:\n"
+                    f"Synthesize a concise, authoritative, reusable editorial rule (1-2 sentences) that future AI generation prompts will follow.\n"
+                    f"RULES:\n"
+                    f"1. Make it actionable, generalizable, and tone-appropriate for {brand.title()}.\n"
+                    f"2. Never weaken insurance compliance, policy limits, or statutory disclaimers.\n"
+                    f"3. Do not just repeat the specific copy; explain the principle to adhere to."
+                )
+
+                result: SynthesizedLesson = llm_provider.generate_structured(
+                    prompt=prompt,
+                    schema=SynthesizedLesson,
+                    system_instruction="JA Assure Senior Compliance & Editorial Governance Editor."
+                )
+
+                if result and result.lesson_rule and len(result.lesson_rule.strip()) > 10:
+                    logger.info(f"Gemini synthesized lesson for [{reason_tag}]: {result.lesson_rule}")
+                    return result.lesson_rule.strip()
+            except Exception as e:
+                logger.warning(f"Gemini lesson synthesis failed: {e}. Using template fallback.")
+
+        # Deterministic fallback
+        if notes and len(notes.strip()) > 10:
+            # Combine template and specific note for rich offline feedback
+            return f"{fallback_rule} Note: {notes.strip()}"
+        return fallback_rule
 
     def get_relevant_lessons_for_prompt(self, brand: str, platform: Optional[str] = None) -> List[str]:
         """

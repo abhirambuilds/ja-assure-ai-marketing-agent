@@ -101,6 +101,13 @@ class LessonLearned(BaseModel):
     frequency: int = 1
     active: bool = True
 
+class SynthesizedLesson(BaseModel):
+    lesson_rule: str
+    rationale: Optional[str] = None
+    category: Optional[str] = None
+    severity: Optional[str] = "medium" # low, medium, high
+    example_guidance: Optional[str] = None
+
 
 # ========================================================
 # 5. Lead Intelligence Contracts
@@ -139,16 +146,23 @@ class VideoScene(BaseModel):
     visual_description: str
     voiceover: str
     onscreen_text: str
+    transition: Optional[str] = "Cut"
+    compliance_disclaimer: Optional[str] = None
 
 class VideoScript(BaseModel):
-    brand: str
-    concept: str
+    brand: Optional[str] = "jade"
+    title: Optional[str] = None
+    concept: Optional[str] = None
+    hook: Optional[str] = None
     target_duration_seconds: int = 45 # 30-60s
-    voiceover_tone: str
+    voiceover_tone: Optional[str] = "Professional"
+    target_platform: Optional[str] = "reel" # reel, video, tiktok, instagram
+    target_audience: Optional[str] = None
+    language: Optional[str] = "en"
     scenes: List[VideoScene] = Field(default_factory=list)
-    cta: str
-    disclaimer: str
-    media_status: str = "pending_render" # pending_render, rendered, mock_rendered
+    cta: Optional[str] = None
+    disclaimer: Optional[str] = None
+    media_status: str = "ai_storyboard_generated" # ai_storyboard_generated, pending_render
 
 
 # ========================================================

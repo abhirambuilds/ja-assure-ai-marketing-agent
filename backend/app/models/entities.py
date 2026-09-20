@@ -100,6 +100,14 @@ class LessonLearned(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, onupdate=utc_now)
 
+    @property
+    def lesson_rule(self) -> str:
+        return self.lesson
+
+    @property
+    def is_active(self) -> bool:
+        return self.active
+
 
 class Analytics(Base):
     __tablename__ = "analytics"

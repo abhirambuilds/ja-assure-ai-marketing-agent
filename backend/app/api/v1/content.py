@@ -30,6 +30,9 @@ class VideoRequest(BaseModel):
     brand: str = "jade"
     topic: str = "Protecting bespoke jewellery collections"
     target_duration: int = 45
+    platform: Optional[str] = "reel"
+    language: Optional[str] = "en"
+    target_audience: Optional[str] = None
 
 @router.post("/generate", response_model=List[GeneratedVariation])
 async def generate_content_variations(req: SingleContentRequest):
@@ -74,7 +77,10 @@ async def generate_video_script(req: VideoRequest):
         script = await media_service.generate_video_script(
             brand=req.brand,
             topic=req.topic,
-            target_duration=req.target_duration
+            target_duration=req.target_duration,
+            platform=req.platform or "reel",
+            language=req.language or "en",
+            target_audience=req.target_audience
         )
         return script
     except Exception as e:

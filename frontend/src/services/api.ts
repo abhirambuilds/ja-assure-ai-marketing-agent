@@ -127,6 +127,9 @@ export const api = {
     brand: string;
     topic: string;
     target_duration?: number;
+    platform?: string;
+    language?: string;
+    target_audience?: string;
   }): Promise<VideoScript> => {
     const res = await fetch(`${API_BASE_URL}/content/video`, {
       method: 'POST',

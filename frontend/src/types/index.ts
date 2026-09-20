@@ -90,13 +90,20 @@ export interface VideoScene {
   visual_description: string;
   voiceover: string;
   onscreen_text: string;
+  transition?: string;
+  compliance_disclaimer?: string;
 }
 
 export interface VideoScript {
   brand: string;
+  title?: string;
   concept: string;
+  hook?: string;
   target_duration_seconds: number;
   voiceover_tone: string;
+  target_platform?: string;
+  target_audience?: string;
+  language?: string;
   scenes: VideoScene[];
   cta: string;
   disclaimer: string;
