@@ -13,7 +13,13 @@ router = APIRouter(prefix="/leads", tags=["Lead Generation & Scoring"])
 
 class DiscoverLeadsRequest(BaseModel):
     brand: Optional[str] = None
+    country: Optional[str] = None
     industry: Optional[str] = None
+    target_audience: Optional[str] = None
+    keywords: Optional[str] = None
+
+class EnrichLeadRequest(BaseModel):
+    source_url: Optional[str] = None
 
 @router.get("", response_model=List[LeadResponse])
 def list_leads(
@@ -36,12 +42,18 @@ def list_leads(
 @router.post("/discover", response_model=List[LeadProspect])
 async def discover_and_score_leads(req: DiscoverLeadsRequest):
     """
-    Run the lead agent discovery & scoring pipeline to find, enrich, score, and draft outreach.
+    Run the lead agent discovery & scoring pipeline.
+    Uses Gemini AI prospect discovery when live or curated demo pool offline.
+    Scores candidates with the 5-factor model, generates contextual outreach,
+    and stores prospects in SQLite.
     """
     try:
         prospects = await lead_service.discover_and_score_leads(
             brand=req.brand,
-            industry=req.industry
+            country=req.country,
+            industry=req.industry,
+            target_audience=req.target_audience,
+            keywords=req.keywords
         )
         return prospects
     except Exception as e:
@@ -54,6 +66,21 @@ def get_lead(lead_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Lead not found")
     return lead
 
+@router.post("/{lead_id}/enrich", response_model=LeadResponse)
+async def enrich_lead(lead_id: int, req: EnrichLeadRequest = EnrichLeadRequest()):
+    """
+    Enrich an existing lead record.
+    If source_url is supplied, scrapes and analyzes the company website to verify offerings and risk factors.
+    Updates 5-factor score explanations and generates personalized outreach.
+    """
+    try:
+        enriched_lead = await lead_service.enrich_lead(lead_id=lead_id, source_url=req.source_url)
+        return enriched_lead
+    except ValueError as ve:
+        raise HTTPException(status_code=404, detail=str(ve))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Lead enrichment failed: {str(e)}")
+
 @router.post("/{lead_id}/outreach")
 def generate_lead_outreach(lead_id: int, db: Session = Depends(get_db)):
     lead = db.get(Lead, lead_id)
@@ -65,7 +92,8 @@ def generate_lead_outreach(lead_id: int, db: Session = Depends(get_db)):
         prospect_name=lead.name,
         company=lead.company,
         brand=brand,
-        industry=lead.industry
+        industry=lead.industry,
+        location=lead.location
     )
     lead.outreach_draft = outreach
     db.commit()

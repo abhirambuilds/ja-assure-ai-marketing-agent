@@ -14,6 +14,31 @@ class CompetitorInsight(BaseModel):
     opportunity: Optional[str] = None
     threat_level: str = "medium" # low, medium, high
     source_url: Optional[str] = None
+    market_country: Optional[str] = None
+    offerings: List[str] = Field(default_factory=list)
+    positioning: Optional[str] = None
+    notable_claims: List[str] = Field(default_factory=list)
+    content_themes: List[str] = Field(default_factory=list)
+    source_type: str = "DEMO_DATA" # VERIFIED_SOURCE, AI_ANALYSIS, DEMO_DATA
+    confidence: float = 0.85
+    last_researched: Optional[str] = None
+
+class ResearchFinding(BaseModel):
+    source: Optional[str] = None
+    source_type: str = "AI_ANALYSIS" # VERIFIED_SOURCE, AI_ANALYSIS, DEMO_DATA
+    title: str
+    company: str
+    category: str = "general" # jewellery, medical, transit, general
+    market_country: Optional[str] = None
+    summary: str
+    offerings: List[str] = Field(default_factory=list)
+    positioning: Optional[str] = None
+    target_audience: Optional[str] = None
+    notable_claims: List[str] = Field(default_factory=list)
+    content_opportunities: List[str] = Field(default_factory=list)
+    potential_weaknesses: List[str] = Field(default_factory=list)
+    counter_positioning: Optional[str] = None # Whitespace / opportunity for JA Assure
+    confidence: float = 0.85
 
 class ResearchInsight(BaseModel):
     brand: str # jade, doctorshield, jaguartransit
@@ -24,6 +49,7 @@ class ResearchInsight(BaseModel):
     competitor_insights: List[CompetitorInsight] = Field(default_factory=list)
     recommended_angles: List[str] = Field(default_factory=list)
     sources: List[str] = Field(default_factory=list)
+    findings: List[ResearchFinding] = Field(default_factory=list)
 
 
 # ========================================================
@@ -120,6 +146,11 @@ class LeadScoringBreakdown(BaseModel):
     product_relevance: float = Field(ge=0, le=20, description="Weight 20%: Need for Jewellery, Med Indemnity, or Transit Cargo")
     potential_insurance_need: float = Field(ge=0, le=15, description="Weight 15%: Exposure to liability, theft, or port risk")
     total_fit_score: float = Field(ge=0, le=100)
+    industry_fit_reason: Optional[str] = None
+    company_profile_reason: Optional[str] = None
+    geographic_relevance_reason: Optional[str] = None
+    product_relevance_reason: Optional[str] = None
+    potential_insurance_need_reason: Optional[str] = None
 
 class LeadProspect(BaseModel):
     name: str
@@ -133,7 +164,28 @@ class LeadProspect(BaseModel):
     qualification_reason: Optional[str] = None
     outreach_draft: Optional[str] = None
     source: Optional[str] = "agent_prospector"
+    source_type: str = "AI_GENERATED_PROSPECT" # VERIFIED_SOURCE, AI_GENERATED_PROSPECT, DEMO_DATA
+    likely_decision_maker_role: Optional[str] = None
+    insurance_need: Optional[str] = None
+    risk_exposure: Optional[str] = None
+    why_relevant: Optional[str] = None
+    discovery_rationale: Optional[str] = None
+    source_url: Optional[str] = None
     scoring_breakdown: Optional[LeadScoringBreakdown] = None
+
+class DiscoveredProspectItem(BaseModel):
+    company_name: str
+    industry: str
+    country_city: str
+    company_profile: str
+    likely_decision_maker_role: str
+    insurance_need: str
+    risk_exposure: str
+    why_relevant: str
+    discovery_rationale: str
+
+class DiscoveredProspectList(BaseModel):
+    prospects: List[DiscoveredProspectItem] = Field(default_factory=list)
 
 
 # ========================================================

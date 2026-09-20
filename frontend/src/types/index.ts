@@ -43,6 +43,7 @@ export interface Competitor {
   actionable_recommendation?: string;
   relevance: number;
   source: string;
+  source_type?: string;
   collected_at: string;
 }
 
@@ -59,6 +60,7 @@ export interface Lead {
   recommended_brand?: Brand;
   outreach_draft?: string;
   source?: string;
+  source_type?: string;
   status: string;
   created_at: string;
 }

@@ -164,6 +164,15 @@ export const api = {
     return handleResponse<any>(res);
   },
 
+  analyzeCompetitorUrl: async (url: string, brand?: string): Promise<Competitor> => {
+    const res = await fetch(`${API_BASE_URL}/competitors/analyze-url`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url, brand }),
+    });
+    return handleResponse<Competitor>(res);
+  },
+
   scrapeUrl: async (url: string): Promise<any> => {
     const res = await fetch(`${API_BASE_URL}/research/scrape`, {
       method: 'POST',
@@ -182,13 +191,28 @@ export const api = {
     return handleResponse<Lead[]>(res);
   },
 
-  discoverLeads: async (payload: { brand?: string; industry?: string }): Promise<any> => {
+  discoverLeads: async (payload: {
+    brand?: string;
+    country?: string;
+    industry?: string;
+    target_audience?: string;
+    keywords?: string;
+  }): Promise<any> => {
     const res = await fetch(`${API_BASE_URL}/leads/discover`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
     return handleResponse<any>(res);
+  },
+
+  enrichLead: async (leadId: number, sourceUrl?: string): Promise<Lead> => {
+    const res = await fetch(`${API_BASE_URL}/leads/${leadId}/enrich`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source_url: sourceUrl }),
+    });
+    return handleResponse<Lead>(res);
   },
 
   generateLeadOutreach: async (leadId: number): Promise<any> => {

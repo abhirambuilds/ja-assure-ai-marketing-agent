@@ -69,9 +69,17 @@ export function App() {
   const [editModalItem, setEditModalItem] = useState<ContentQueueItem | null>(null);
   const [editContentText, setEditContentText] = useState<string>('');
 
-  // Scraper Form
+  // Scraper & Competitor Form
   const [scrapeUrlInput, setScrapeUrlInput] = useState<string>('https://briteprotect.example.com');
+  const [scrapeBrand, setScrapeBrand] = useState<'jade' | 'doctorshield' | 'jaguartransit'>('jade');
   const [scrapeResult, setScrapeResult] = useState<any>(null);
+
+  // Lead Discovery Filters & Enrichment
+  const [leadCountry, setLeadCountry] = useState<string>('Singapore');
+  const [leadBrand, setLeadBrand] = useState<string>('jade');
+  const [leadIndustry, setLeadIndustry] = useState<string>('');
+  const [enrichModalLead, setEnrichModalLead] = useState<Lead | null>(null);
+  const [enrichUrlInput, setEnrichUrlInput] = useState<string>('');
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -244,19 +252,83 @@ export function App() {
     }
   };
 
-  // Competitor Scraper
+  // Competitor Analysis & Scraper
   const handleScrape = async () => {
+    if (!scrapeUrlInput) return;
     setActionLoading('scraping');
     try {
-      const res = await api.scrapeUrl(scrapeUrlInput);
-      setScrapeResult(res);
-      showToast('🔍 Competitor website metadata extracted!');
+      const comp = await api.analyzeCompetitorUrl(scrapeUrlInput, scrapeBrand);
+      setScrapeResult(comp);
+      showToast(`✓ Analyzed competitor & extracted strategic intelligence: ${comp.name}`);
       fetchAllData();
     } catch (err: any) {
-      alert(`Scraping error: ${err.message}`);
+      alert(`Scraping / Analysis error: ${err.message}`);
     } finally {
       setActionLoading(null);
     }
+  };
+
+  const handleDiscoverLeadsWithFilters = async () => {
+    setActionLoading('discovering');
+    try {
+      const prospects = await api.discoverLeads({
+        brand: leadBrand !== 'all' ? leadBrand : undefined,
+        country: leadCountry !== 'all' ? leadCountry : undefined,
+        industry: leadIndustry || undefined
+      });
+      showToast(`✓ Discovered & scored ${prospects.length} B2B prospects!`);
+      fetchAllData();
+    } catch (err: any) {
+      alert(`Discovery failed: ${err.message}`);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleEnrichLead = async () => {
+    if (!enrichModalLead) return;
+    setActionLoading(`enrich-${enrichModalLead.id}`);
+    try {
+      const enriched = await api.enrichLead(enrichModalLead.id, enrichUrlInput || undefined);
+      showToast(`✓ Enriched risk profile & outreach for ${enriched.company}!`);
+      setEnrichModalLead(null);
+      setEnrichUrlInput('');
+      fetchAllData();
+    } catch (err: any) {
+      alert(`Enrichment error: ${err.message}`);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const getSourceTypeBadge = (source?: string, sourceType?: string) => {
+    const s = (sourceType || source || '').toUpperCase();
+    if (s.includes('VERIFIED')) {
+      return (
+        <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1">
+          <ShieldCheck className="w-3 h-3 text-emerald-400" /> VERIFIED SOURCE
+        </span>
+      );
+    }
+    if (s.includes('ANALYSIS')) {
+      return (
+        <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-blue-500/20 text-cyan-300 border border-blue-500/40 flex items-center gap-1">
+          <BrainCircuit className="w-3 h-3 text-cyan-400" /> AI ANALYSIS
+        </span>
+      );
+    }
+    if (s.includes('PROSPECT') || s.includes('AI_GENERATED')) {
+      return (
+        <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1">
+          <Sparkles className="w-3 h-3 text-amber-400" /> AI-GENERATED PROSPECT
+        </span>
+      );
+    }
+    return (
+      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-800 text-slate-400 border border-slate-700">
+        DEMO DATA
+      </span>
+    );
   };
 
   const getBrandBadge = (brand: string) => {
@@ -867,13 +939,29 @@ export function App() {
         {/* 4. COMPETITOR INTEL VIEW */}
         {activeTab === 'competitors' && (
           <div className="space-y-6">
-            {/* Live Scraper Bar */}
+            {/* Live Scraper & Competitor Analysis Bar */}
             <div className="glass-panel p-5 rounded-2xl border border-slate-800 space-y-3">
-              <h3 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
-                <Search className="w-4 h-4 text-cyan-400" />
-                Live Competitor Scraper & Change Extractor
-              </h3>
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
+                  <Search className="w-4 h-4 text-cyan-400" />
+                  Live Competitor Scraper & Intelligence Extractor
+                </h3>
+                <span className="text-[11px] text-slate-400 font-mono">
+                  Enforces 8s timeout • 512KB payload limits • Counter-positioning whitespace
+                </span>
+              </div>
+
               <div className="flex flex-col sm:flex-row items-center gap-2">
+                <select
+                  value={scrapeBrand}
+                  onChange={(e: any) => setScrapeBrand(e.target.value)}
+                  className="bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:ring-1 focus:ring-blue-500 w-full sm:w-44"
+                >
+                  <option value="jade">Jade (Jewellery)</option>
+                  <option value="doctorshield">DoctorShield (Med Indemnity)</option>
+                  <option value="jaguartransit">Jaguar Transit (Cargo)</option>
+                </select>
+
                 <input
                   type="text"
                   value={scrapeUrlInput}
@@ -881,19 +969,32 @@ export function App() {
                   placeholder="https://competitor.com/product"
                   className="flex-1 bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:ring-1 focus:ring-blue-500 w-full"
                 />
+
                 <button
                   onClick={handleScrape}
                   disabled={actionLoading === 'scraping'}
-                  className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium whitespace-nowrap shadow-sm"
+                  className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium whitespace-nowrap shadow-sm flex items-center gap-1.5"
                 >
-                  {actionLoading === 'scraping' ? 'Analyzing...' : 'Scrape & Extract'}
+                  <Sparkles className="w-3.5 h-3.5" />
+                  {actionLoading === 'scraping' ? 'Analyzing Competitor...' : 'Scrape & Analyze URL'}
                 </button>
               </div>
 
               {scrapeResult && (
-                <div className="bg-slate-900/80 p-3.5 rounded-xl border border-slate-800 text-xs space-y-1">
-                  <p className="font-semibold text-cyan-300">Scraped: {scrapeResult.title}</p>
-                  <p className="text-slate-400">{scrapeResult.meta_description || scrapeResult.extracted_sample?.slice(0, 200)}</p>
+                <div className="bg-slate-900/90 p-4 rounded-xl border border-slate-800 text-xs space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-cyan-300 flex items-center gap-1.5">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                      Analyzed: {scrapeResult.title || scrapeResult.name}
+                    </span>
+                    {getSourceTypeBadge(scrapeResult.source, scrapeResult.source_type || 'VERIFIED_SOURCE')}
+                  </div>
+                  <p className="text-slate-300">{scrapeResult.meta_description || scrapeResult.summary}</p>
+                  {scrapeResult.actionable_recommendation && (
+                    <div className="bg-emerald-950/40 p-2.5 rounded-lg border border-emerald-800/50 text-emerald-300">
+                      <strong>Whitespace / Counter-Positioning Opportunity:</strong> {scrapeResult.actionable_recommendation}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -902,26 +1003,52 @@ export function App() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {competitors.map(c => (
                 <div key={c.id} className="glass-panel p-5 rounded-2xl border border-slate-800 space-y-3 flex flex-col justify-between">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
                       <span className="px-2 py-0.5 rounded text-xs bg-slate-800 text-slate-300 font-mono capitalize">{c.category}</span>
-                      <span className="text-xs text-amber-400 font-mono">Relevance: {(c.relevance * 100).toFixed(0)}%</span>
+                      {getSourceTypeBadge(c.source, c.source_type)}
+                      <span className="text-xs text-cyan-400 font-mono">Confidence: {(c.relevance * 100).toFixed(0)}%</span>
                     </div>
-                    <h4 className="font-bold text-slate-100 text-sm">{c.name}</h4>
+
+                    <div>
+                      <h4 className="font-bold text-slate-100 text-sm">{c.name}</h4>
+                      {c.url && (
+                        <a
+                          href={c.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-[11px] text-blue-400 hover:underline break-all"
+                        >
+                          {c.url}
+                        </a>
+                      )}
+                    </div>
+
                     <p className="text-xs text-slate-300 font-medium">{c.title}</p>
-                    <p className="text-xs text-slate-400">{c.summary}</p>
+                    <p className="text-xs text-slate-400 leading-relaxed">{c.summary}</p>
+
                     {c.detected_change && (
-                      <div className="bg-slate-900/70 p-2 rounded-lg text-xs text-cyan-300 border border-slate-800">
-                        <strong>Detected Shift:</strong> {c.detected_change}
+                      <div className="bg-slate-900/70 p-2.5 rounded-lg text-xs text-cyan-300 border border-slate-800 space-y-0.5">
+                        <strong className="text-slate-400 uppercase text-[10px] tracking-wider block">Observed Positioning & Claims:</strong>
+                        <p>{c.detected_change}</p>
                       </div>
                     )}
                   </div>
 
-                  {c.actionable_recommendation && (
-                    <div className="bg-emerald-950/30 p-2.5 rounded-lg border border-emerald-800/40 text-xs text-emerald-300">
-                      <strong>JA Assure Opportunity:</strong> {c.actionable_recommendation}
+                  <div className="space-y-2 pt-2 border-t border-slate-800/80">
+                    {c.actionable_recommendation && (
+                      <div className="bg-emerald-950/30 p-2.5 rounded-lg border border-emerald-800/40 text-xs text-emerald-300 space-y-1">
+                        <strong className="text-emerald-400 uppercase text-[10px] tracking-wider block">
+                          Strategic Whitespace / Counter-Positioning:
+                        </strong>
+                        <p>{c.actionable_recommendation}</p>
+                      </div>
+                    )}
+                    <div className="text-[10px] text-slate-500 font-mono flex items-center justify-between">
+                      <span>Attribution: {c.source || 'DEMO_DATA'}</span>
+                      <span>Researched: {new Date(c.collected_at).toLocaleDateString()}</span>
                     </div>
-                  )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -931,65 +1058,129 @@ export function App() {
         {/* 5. LEADS VIEW */}
         {activeTab === 'leads' && (
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="font-semibold text-slate-100 text-sm">B2B Insurance Prospects</h2>
-                <p className="text-xs text-slate-400">Scored on 5-factor model: Industry Fit, Geo Relevance, Company Profile, Product Need</p>
+            {/* Discovery Control & Filter Bar */}
+            <div className="glass-panel p-5 rounded-2xl border border-slate-800 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="font-semibold text-slate-100 text-sm flex items-center gap-2">
+                    <Users className="w-4 h-4 text-cyan-400" />
+                    B2B Insurance Prospect Discovery & Transparent Scoring
+                  </h2>
+                  <p className="text-xs text-slate-400">
+                    5-factor scoring model (Industry, Profile, Geo, Product, Need). AI prospects are strictly labeled.
+                  </p>
+                </div>
               </div>
-              <button
-                onClick={async () => {
-                  setActionLoading('discovering');
-                  await api.discoverLeads({});
-                  showToast('Lead discovery pipeline refreshed!');
-                  fetchAllData();
-                  setActionLoading(null);
-                }}
-                className="px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium flex items-center gap-1.5 shadow-sm"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${actionLoading === 'discovering' ? 'animate-spin' : ''}`} />
-                Run Lead Discovery
-              </button>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 pt-1">
+                <div>
+                  <label className="text-[11px] text-slate-400 block mb-1 font-mono">Brand Facility</label>
+                  <select
+                    value={leadBrand}
+                    onChange={(e) => setLeadBrand(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-slate-200"
+                  >
+                    <option value="jade">Jade (Jewellery)</option>
+                    <option value="doctorshield">DoctorShield (Med Indemnity)</option>
+                    <option value="jaguartransit">Jaguar Transit (Cargo)</option>
+                    <option value="all">All Brands</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[11px] text-slate-400 block mb-1 font-mono">Jurisdiction / Country</label>
+                  <select
+                    value={leadCountry}
+                    onChange={(e) => setLeadCountry(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-slate-200"
+                  >
+                    <option value="Singapore">Singapore (MAS / SMC)</option>
+                    <option value="Malaysia">Malaysia (BNM)</option>
+                    <option value="Thailand">Thailand (OIC)</option>
+                    <option value="Indonesia">Indonesia (OJK)</option>
+                    <option value="all">All Regional Markets</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[11px] text-slate-400 block mb-1 font-mono">Industry Focus (Optional)</label>
+                  <input
+                    type="text"
+                    value={leadIndustry}
+                    onChange={(e) => setLeadIndustry(e.target.value)}
+                    placeholder="e.g. Cosmetic Dermatology, Fine Diamonds"
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-slate-200"
+                  />
+                </div>
+
+                <div className="flex items-end">
+                  <button
+                    onClick={handleDiscoverLeadsWithFilters}
+                    disabled={actionLoading === 'discovering'}
+                    className="w-full py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium flex items-center justify-center gap-1.5 shadow-sm"
+                  >
+                    <Sparkles className={`w-3.5 h-3.5 ${actionLoading === 'discovering' ? 'animate-spin' : ''}`} />
+                    {actionLoading === 'discovering' ? 'Discovering Prospects...' : 'Discover & Score Leads'}
+                  </button>
+                </div>
+              </div>
             </div>
 
+            {/* Prospects Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {leads.map(lead => (
                 <div key={lead.id} className="glass-panel p-5 rounded-2xl border border-slate-800 space-y-4 flex flex-col justify-between">
                   <div className="space-y-3">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-start justify-between gap-3">
                       <div>
-                        <h4 className="font-bold text-slate-100 text-sm">{lead.name}</h4>
+                        <div className="flex items-center gap-2 mb-1">
+                          <h4 className="font-bold text-slate-100 text-sm">{lead.name}</h4>
+                          {getSourceTypeBadge(lead.source, lead.source_type)}
+                        </div>
                         <p className="text-xs text-slate-400">{lead.company} • {lead.location}</p>
                       </div>
-                      <div className="text-right">
-                        <div className="text-lg font-bold font-mono text-cyan-400">{lead.fit_score}%</div>
+                      <div className="text-right whitespace-nowrap">
+                        <div className="text-xl font-bold font-mono text-cyan-400">{lead.fit_score}%</div>
                         <span className="text-[10px] text-slate-500 uppercase font-mono">Fit Score</span>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-mono">{lead.industry}</span>
                       {lead.recommended_brand && getBrandBadge(lead.recommended_brand)}
                     </div>
 
                     {lead.qualification_reason && (
-                      <p className="text-xs text-slate-400 italic">
-                        <strong>Rationale:</strong> {lead.qualification_reason}
-                      </p>
+                      <div className="text-xs text-slate-300 bg-slate-900/60 p-3 rounded-xl border border-slate-800 space-y-1">
+                        <strong className="text-cyan-400 uppercase text-[10px] tracking-wider block">Qualification Rationale & Risk Exposure:</strong>
+                        <p className="leading-relaxed">{lead.qualification_reason}</p>
+                      </div>
                     )}
 
                     {lead.outreach_draft && (
                       <div className="space-y-1.5">
                         <div className="flex items-center justify-between text-xs text-slate-400">
-                          <span className="font-semibold">Personalized Outreach Draft:</span>
-                          <button
-                            onClick={() => {
-                              navigator.clipboard.writeText(lead.outreach_draft!);
-                              showToast('Outreach draft copied to clipboard!');
-                            }}
-                            className="text-blue-400 hover:text-blue-300 flex items-center gap-1"
-                          >
-                            <Copy className="w-3 h-3" /> Copy
-                          </button>
+                          <span className="font-semibold">Contextual B2B Outreach:</span>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => {
+                                setEnrichModalLead(lead);
+                                setEnrichUrlInput('');
+                              }}
+                              className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1"
+                            >
+                              <Sparkles className="w-3 h-3" /> Enrich Lead
+                            </button>
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(lead.outreach_draft!);
+                                showToast('Outreach draft copied to clipboard!');
+                              }}
+                              className="text-blue-400 hover:text-blue-300 flex items-center gap-1"
+                            >
+                              <Copy className="w-3 h-3" /> Copy
+                            </button>
+                          </div>
                         </div>
                         <p className="text-xs text-slate-300 bg-slate-900/80 p-3 rounded-xl border border-slate-800 whitespace-pre-line leading-relaxed font-sans">
                           {lead.outreach_draft}
@@ -1246,6 +1437,54 @@ export function App() {
                 className="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium"
               >
                 Save & Approve Copy
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* LEAD ENRICHMENT MODAL */}
+      {enrichModalLead && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-sm text-cyan-300 flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-cyan-400" /> Enrich Lead: {enrichModalLead.company}
+              </h3>
+              <button onClick={() => setEnrichModalLead(null)} className="text-slate-400 hover:text-white">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-400">
+              Provide an official company website URL to scrape verified offerings and risk factors, or leave blank to perform AI reasoning enrichment.
+            </p>
+
+            <div className="space-y-2 text-xs">
+              <label className="text-slate-300 font-medium">Company Website / Source URL (Optional)</label>
+              <input
+                type="text"
+                value={enrichUrlInput}
+                onChange={(e) => setEnrichUrlInput(e.target.value)}
+                placeholder="https://company.com/about"
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-slate-200 text-xs focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                onClick={() => setEnrichModalLead(null)}
+                className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleEnrichLead}
+                disabled={actionLoading?.startsWith('enrich-')}
+                className="px-4 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-medium flex items-center gap-1.5"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                {actionLoading?.startsWith('enrich-') ? 'Enriching...' : 'Enrich Prospect'}
               </button>
             </div>
           </div>

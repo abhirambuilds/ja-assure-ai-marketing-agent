@@ -54,6 +54,14 @@ class Competitor(Base):
     source: Mapped[str] = mapped_column(String(100), default="public_web")
     collected_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
 
+    @property
+    def source_type(self) -> str:
+        if self.source in ["VERIFIED_SOURCE", "AI_ANALYSIS", "DEMO_DATA"]:
+            return self.source
+        if "live" in (self.source or "").lower() or (self.url and "http" in self.url):
+            return "VERIFIED_SOURCE"
+        return "DEMO_DATA"
+
 
 class Lead(Base):
     __tablename__ = "leads"
@@ -72,6 +80,16 @@ class Lead(Base):
     source: Mapped[Optional[str]] = mapped_column(String(100), default="prospecting")
     status: Mapped[str] = mapped_column(String(50), default="new", index=True) # new, contacted, qualified, converted, archived
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
+
+    @property
+    def source_type(self) -> str:
+        if self.source in ["VERIFIED_SOURCE", "AI_GENERATED_PROSPECT", "DEMO_DATA"]:
+            return self.source
+        if "prospect" in (self.source or "").lower() or "agent" in (self.source or "").lower():
+            return "AI_GENERATED_PROSPECT"
+        if self.source and "http" in self.source:
+            return "VERIFIED_SOURCE"
+        return "DEMO_DATA"
 
 
 class Feedback(Base):

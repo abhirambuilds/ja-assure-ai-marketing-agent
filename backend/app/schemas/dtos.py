@@ -67,6 +67,7 @@ class CompetitorBase(BaseModel):
     actionable_recommendation: Optional[str] = None
     relevance: float = 0.5
     source: str = "public_web"
+    source_type: Optional[str] = None
 
 class CompetitorCreate(CompetitorBase):
     pass
@@ -90,6 +91,7 @@ class LeadBase(BaseModel):
     recommended_brand: Optional[str] = None
     outreach_draft: Optional[str] = None
     source: Optional[str] = "prospecting"
+    source_type: Optional[str] = None
     status: str = "new"
 
 class LeadCreate(LeadBase):
