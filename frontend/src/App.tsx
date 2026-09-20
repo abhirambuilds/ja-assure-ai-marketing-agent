@@ -19,7 +19,11 @@ import {
   ChevronRight,
   TrendingUp,
   BrainCircuit,
-  FileText
+  FileText,
+  Calendar,
+  PieChart,
+  BarChart3,
+  Info
 } from 'lucide-react';
 import { api } from './services/api';
 import type { 
@@ -31,7 +35,8 @@ import type {
   LessonLearned, 
   Feedback,
   GeneratedVariation,
-  VideoScript 
+  VideoScript,
+  PublishingRecord
 } from './types';
 
 export function App() {
@@ -45,6 +50,7 @@ export function App() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [lessons, setLessons] = useState<LessonLearned[]>([]);
   const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
+  const [publishingRecords, setPublishingRecords] = useState<PublishingRecord[]>([]);
   const [health, setHealth] = useState<HealthCheckResponse | null>(null);
   
   const [loading, setLoading] = useState<boolean>(true);
@@ -69,6 +75,11 @@ export function App() {
   const [editModalItem, setEditModalItem] = useState<ContentQueueItem | null>(null);
   const [editContentText, setEditContentText] = useState<string>('');
 
+  // Publishing Preview Modal states
+  const [publishingModalItem, setPublishingModalItem] = useState<ContentQueueItem | null>(null);
+  const [scheduledPlatform, setScheduledPlatform] = useState<string>('linkedin');
+  const [scheduledTime, setScheduledTime] = useState<string>('');
+
   // Scraper & Competitor Form
   const [scrapeUrlInput, setScrapeUrlInput] = useState<string>('https://briteprotect.example.com');
   const [scrapeBrand, setScrapeBrand] = useState<'jade' | 'doctorshield' | 'jaguartransit'>('jade');
@@ -90,14 +101,15 @@ export function App() {
     setLoading(true);
     setError(null);
     try {
-      const [h, s, q, c, l, les, fb] = await Promise.all([
+      const [h, s, q, c, l, les, fb, pubs] = await Promise.all([
         api.getHealth(),
         api.getDashboardSummary(),
         api.getQueue({ brand: selectedBrand !== 'all' ? selectedBrand : undefined }),
         api.getCompetitors(),
         api.getLeads(),
         api.getLessons(),
-        api.getFeedback()
+        api.getFeedback(),
+        api.getPublishingRecords()
       ]);
       setHealth(h);
       setSummary(s);
@@ -106,6 +118,7 @@ export function App() {
       setLeads(l);
       setLessons(les);
       setFeedbacks(fb);
+      setPublishingRecords(pubs);
     } catch (err: any) {
       console.error(err);
       setError(err.message || 'Failed to connect to backend server at http://localhost:8000.');
@@ -194,6 +207,59 @@ export function App() {
       fetchAllData();
     } catch (err: any) {
       alert(`Regeneration error: ${err.message}`);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // Publishing Preview Handlers (Human-controlled simulated dispatch)
+  const handleOpenScheduleModal = (item: ContentQueueItem) => {
+    if (item.status !== 'approved' && item.status !== 'scheduled') {
+      alert('Only human-approved content can reach simulated publishing dispatch preview.');
+      return;
+    }
+    if (item.compliance_score < 80) {
+      alert(`Cannot schedule non-compliant content (Score: ${item.compliance_score}/100).`);
+      return;
+    }
+    setPublishingModalItem(item);
+    setScheduledPlatform(item.platform || 'linkedin');
+    
+    // Default scheduled time: tomorrow at 09:00 AM
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(9, 0, 0, 0);
+    const localIso = new Date(tomorrow.getTime() - tomorrow.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    setScheduledTime(localIso);
+  };
+
+  const handleConfirmSchedule = async () => {
+    if (!publishingModalItem) return;
+    setActionLoading(`schedule-${publishingModalItem.id}`);
+    try {
+      await api.schedulePublishing({
+        content_id: publishingModalItem.id,
+        platform: scheduledPlatform,
+        scheduled_at: scheduledTime ? new Date(scheduledTime).toISOString() : undefined
+      });
+      showToast(`✓ Simulated dispatch scheduled for ${scheduledPlatform.toUpperCase()}! Stored in SQLite.`);
+      setPublishingModalItem(null);
+      fetchAllData();
+    } catch (err: any) {
+      alert(`Scheduling error: ${err.message}`);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleCancelPublishing = async (recordId: number) => {
+    setActionLoading(`cancel-pub-${recordId}`);
+    try {
+      await api.cancelPublishing(recordId);
+      showToast('Scheduled dispatch cancelled. Content item returned to approved pool.');
+      fetchAllData();
+    } catch (err: any) {
+      alert(`Cancel error: ${err.message}`);
     } finally {
       setActionLoading(null);
     }
@@ -348,6 +414,10 @@ export function App() {
     switch (status) {
       case 'approved':
         return <span className="inline-flex items-center gap-1 text-xs text-emerald-400 font-medium"><CheckCircle2 className="w-3.5 h-3.5" /> Approved</span>;
+      case 'scheduled':
+        return <span className="inline-flex items-center gap-1 text-xs text-cyan-300 font-semibold px-2 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/30"><Calendar className="w-3 h-3 text-cyan-400" /> Scheduled (Simulated)</span>;
+      case 'published':
+        return <span className="inline-flex items-center gap-1 text-xs text-blue-300 font-semibold px-2 py-0.5 rounded bg-blue-500/10 border border-blue-500/30"><Send className="w-3 h-3 text-blue-400" /> Dispatched (Simulated)</span>;
       case 'human_review':
         return <span className="inline-flex items-center gap-1 text-xs text-amber-400 font-medium"><Clock className="w-3.5 h-3.5" /> Awaiting Review</span>;
       case 'rejected':
@@ -359,7 +429,7 @@ export function App() {
 
   const filteredQueue = queue.filter(item => {
     if (reviewFilter === 'pending') return item.status === 'human_review' || item.status === 'pending';
-    if (reviewFilter === 'approved') return item.status === 'approved' || item.status === 'published';
+    if (reviewFilter === 'approved') return item.status === 'approved' || item.status === 'scheduled' || item.status === 'published';
     if (reviewFilter === 'rejected') return item.status === 'rejected';
     return true;
   });
@@ -475,6 +545,56 @@ export function App() {
         {/* 1. DASHBOARD VIEW */}
         {activeTab === 'dashboard' && summary && (
           <div className="space-y-6">
+            {/* Autonomous Closed-Loop Architecture Banner */}
+            <div className="glass-panel p-4 sm:p-5 rounded-2xl border border-blue-900/40 bg-gradient-to-r from-blue-950/40 via-slate-900/70 to-indigo-950/40 shadow-lg space-y-3">
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-blue-600/20 text-cyan-400 border border-blue-500/30 flex items-center justify-center shrink-0">
+                    <BrainCircuit className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-xs font-bold text-white tracking-wider uppercase flex items-center gap-2">
+                      Autonomous Multi-Brand Governance Architecture
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-mono">
+                        Human-in-the-Loop Enforced
+                      </span>
+                    </h2>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Strict regulatory compliance with closed-loop rule synthesis across Jade, DoctorShield & Jaguar Transit
+                    </p>
+                  </div>
+                </div>
+              </div>
+              
+              {/* 6-Stage Process Flow */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 pt-1">
+                <div className="bg-slate-900/80 p-2.5 rounded-xl border border-slate-800 flex flex-col justify-between">
+                  <span className="text-[10px] font-mono text-cyan-400 uppercase font-semibold">1. Research</span>
+                  <p className="text-[11px] text-slate-300 mt-1 font-medium">Competitor & Market Signals</p>
+                </div>
+                <div className="bg-slate-900/80 p-2.5 rounded-xl border border-slate-800 flex flex-col justify-between">
+                  <span className="text-[10px] font-mono text-indigo-400 uppercase font-semibold">2. Generate</span>
+                  <p className="text-[11px] text-slate-300 mt-1 font-medium">Multi-Platform AI Drafts</p>
+                </div>
+                <div className="bg-slate-900/80 p-2.5 rounded-xl border border-slate-800 flex flex-col justify-between">
+                  <span className="text-[10px] font-mono text-emerald-400 uppercase font-semibold">3. Comply</span>
+                  <p className="text-[11px] text-slate-300 mt-1 font-medium">Automated MAS & MOH Gate</p>
+                </div>
+                <div className="bg-slate-900/80 p-2.5 rounded-xl border border-amber-800/40 bg-amber-950/10 flex flex-col justify-between">
+                  <span className="text-[10px] font-mono text-amber-400 uppercase font-semibold">4. Human Review</span>
+                  <p className="text-[11px] text-amber-200 mt-1 font-medium">Mandatory Sign-off Gate</p>
+                </div>
+                <div className="bg-slate-900/80 p-2.5 rounded-xl border border-slate-800 flex flex-col justify-between">
+                  <span className="text-[10px] font-mono text-purple-400 uppercase font-semibold">5. Learn</span>
+                  <p className="text-[11px] text-slate-300 mt-1 font-medium">Rejections Synthesize Rules</p>
+                </div>
+                <div className="bg-slate-900/80 p-2.5 rounded-xl border border-slate-800 flex flex-col justify-between">
+                  <span className="text-[10px] font-mono text-teal-400 uppercase font-semibold">6. Improve</span>
+                  <p className="text-[11px] text-slate-300 mt-1 font-medium">Prompts Adapt Automatically</p>
+                </div>
+              </div>
+            </div>
+
             {/* Top KPI Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="glass-panel p-5 rounded-2xl border border-slate-800 shadow-sm flex flex-col justify-between">
@@ -883,8 +1003,19 @@ export function App() {
                       </span>
 
                       <div className="flex items-center gap-2">
-                        {/* Auto Compliance Rewrite */}
-                        {item.compliance_score < 85 && (
+                        {/* If item is Approved or Scheduled: Show Schedule Preview */}
+                        {(item.status === 'approved' || item.status === 'scheduled') && (
+                          <button
+                            onClick={() => handleOpenScheduleModal(item)}
+                            className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-cyan-600 hover:bg-cyan-500 text-white flex items-center gap-1.5 shadow-md shadow-cyan-600/30 transition-all cursor-pointer"
+                          >
+                            <Calendar className="w-3.5 h-3.5" />
+                            {item.status === 'scheduled' ? 'Reschedule Preview' : 'Schedule Dispatch Preview'}
+                          </button>
+                        )}
+
+                        {/* Auto Compliance Rewrite - only for pending review with low score */}
+                        {(item.status === 'human_review' || item.status === 'pending') && item.compliance_score < 85 && (
                           <button
                             onClick={() => handleRewrite(item.id)}
                             disabled={actionLoading === `rewrite-${item.id}`}
@@ -902,31 +1033,37 @@ export function App() {
                           <FileText className="w-3.5 h-3.5" /> Edit Copy
                         </button>
 
-                        {/* Regenerate with lessons */}
-                        <button
-                          onClick={() => handleRegenerate(item.id)}
-                          disabled={actionLoading === `regen-${item.id}`}
-                          className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 flex items-center gap-1.5 transition-colors"
-                        >
-                          <RefreshCw className="w-3.5 h-3.5" /> Regenerate
-                        </button>
+                        {/* Regenerate with lessons (for pending or rejected items) */}
+                        {(item.status === 'human_review' || item.status === 'pending' || item.status === 'rejected') && (
+                          <button
+                            onClick={() => handleRegenerate(item.id)}
+                            disabled={actionLoading === `regen-${item.id}`}
+                            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 flex items-center gap-1.5 transition-colors"
+                          >
+                            <RefreshCw className="w-3.5 h-3.5" /> Regenerate
+                          </button>
+                        )}
 
-                        {/* Reject */}
-                        <button
-                          onClick={() => handleOpenReject(item)}
-                          className="px-3 py-1.5 rounded-lg text-xs font-medium bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white border border-rose-500/40 flex items-center gap-1.5 transition-colors"
-                        >
-                          <X className="w-3.5 h-3.5" /> Reject & Learn
-                        </button>
+                        {/* Reject & Learn - only for items pending review */}
+                        {(item.status === 'human_review' || item.status === 'pending') && (
+                          <button
+                            onClick={() => handleOpenReject(item)}
+                            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white border border-rose-500/40 flex items-center gap-1.5 transition-colors"
+                          >
+                            <X className="w-3.5 h-3.5" /> Reject & Learn
+                          </button>
+                        )}
 
-                        {/* Approve */}
-                        <button
-                          onClick={() => handleApprove(item.id)}
-                          disabled={actionLoading === `approve-${item.id}`}
-                          className="px-3.5 py-1.5 rounded-lg text-xs font-medium bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-1.5 shadow-sm transition-colors"
-                        >
-                          <Check className="w-3.5 h-3.5" /> Approve
-                        </button>
+                        {/* Approve - only for items pending review */}
+                        {(item.status === 'human_review' || item.status === 'pending') && (
+                          <button
+                            onClick={() => handleApprove(item.id)}
+                            disabled={actionLoading === `approve-${item.id}`}
+                            className="px-3.5 py-1.5 rounded-lg text-xs font-medium bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-1.5 shadow-sm transition-colors"
+                          >
+                            <Check className="w-3.5 h-3.5" /> Approve
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1262,75 +1399,516 @@ export function App() {
         )}
 
         {/* 7. ANALYTICS VIEW */}
-        {activeTab === 'analytics' && summary && (
-          <div className="space-y-6">
-            <h2 className="font-semibold text-slate-100 text-sm">System Analytics & Closed-Loop Performance</h2>
+        {activeTab === 'analytics' && summary && (() => {
+          const tot = summary.total_content || 0;
+          const appr = summary.human_approved || summary.approved || 0;
+          const rej = summary.rejected || 0;
+          const pend = summary.pending_human_review || 0;
+          const approvalRate = summary.approval_rate !== undefined 
+            ? summary.approval_rate 
+            : (tot > 0 ? Number(((appr / tot) * 100).toFixed(1)) : 0);
+          const rejectionRate = summary.rejection_rate !== undefined
+            ? summary.rejection_rate
+            : (tot > 0 ? Number(((rej / tot) * 100).toFixed(1)) : 0);
+          const pendingRate = tot > 0 ? Number(((pend / tot) * 100).toFixed(1)) : 0;
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="glass-panel p-5 rounded-2xl border border-slate-800">
-                <span className="text-xs text-slate-400">Human Approval Rate</span>
-                <div className="text-2xl font-bold text-emerald-400 mt-2">
-                  {summary.total_content > 0 ? ((summary.human_approved / summary.total_content) * 100).toFixed(1) : 0}%
+          // Donut geometry: circle r=36, circumference = 2 * PI * 36 = 226.19
+          const c = 226.19;
+          const apprStroke = (approvalRate / 100) * c;
+          const rejStroke = (rejectionRate / 100) * c;
+          const pendStroke = (pendingRate / 100) * c;
+
+          const compDist = summary.compliance_score_distribution || { '90_100': 0, '80_89': 0, '<80': 0 };
+          const highComp = compDist['90_100'] || 0;
+          const medComp = compDist['80_89'] || 0;
+          const lowComp = compDist['<80'] || 0;
+          const compTotal = Math.max(1, highComp + medComp + lowComp);
+
+          const leadDist = summary.lead_score_distribution || { 'tier_1_high': 0, 'tier_2_moderate': 0, 'tier_3_emerging': 0 };
+          const t1 = leadDist['tier_1_high'] || 0;
+          const t2 = leadDist['tier_2_moderate'] || 0;
+          const t3 = leadDist['tier_3_emerging'] || 0;
+          const leadTotal = Math.max(1, t1 + t2 + t3);
+
+          return (
+            <div className="space-y-6">
+              {/* Analytics Header */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
+                <div>
+                  <h2 className="font-bold text-slate-100 text-base flex items-center gap-2">
+                    <Layers className="w-4 h-4 text-blue-400" />
+                    InsurTech Governance & Closed-Loop Analytics
+                  </h2>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Real-time operational KPIs computed directly from SQLite database records
+                  </p>
+                </div>
+                <span className="text-[11px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full w-fit">
+                  Live SQLite Sync Active
+                </span>
+              </div>
+
+              {/* 10 Live KPI Cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                {/* 1. Content Generated */}
+                <div className="glass-panel p-4 rounded-xl border border-slate-800 space-y-1">
+                  <span className="text-[10px] font-mono font-semibold uppercase text-slate-400 block">1. Generated</span>
+                  <div className="text-2xl font-bold text-white font-mono">{summary.total_content}</div>
+                  <span className="text-[10px] text-slate-500">Drafted variations</span>
+                </div>
+
+                {/* 2. Pending Human Review */}
+                <div className="glass-panel p-4 rounded-xl border border-amber-900/40 bg-amber-950/10 space-y-1">
+                  <span className="text-[10px] font-mono font-semibold uppercase text-amber-400 block">2. Awaiting Review</span>
+                  <div className="text-2xl font-bold text-amber-300 font-mono">{summary.pending_human_review}</div>
+                  <span className="text-[10px] text-amber-200/70">Requires sign-off</span>
+                </div>
+
+                {/* 3. Approved */}
+                <div className="glass-panel p-4 rounded-xl border border-emerald-900/40 bg-emerald-950/10 space-y-1">
+                  <span className="text-[10px] font-mono font-semibold uppercase text-emerald-400 block">3. Human Approved</span>
+                  <div className="text-2xl font-bold text-emerald-400 font-mono">{appr}</div>
+                  <span className="text-[10px] text-emerald-300/70">Verified & compliant</span>
+                </div>
+
+                {/* 4. Rejected */}
+                <div className="glass-panel p-4 rounded-xl border border-rose-900/40 bg-rose-950/10 space-y-1">
+                  <span className="text-[10px] font-mono font-semibold uppercase text-rose-400 block">4. Rejected</span>
+                  <div className="text-2xl font-bold text-rose-400 font-mono">{rej}</div>
+                  <span className="text-[10px] text-rose-300/70">Lessons synthesized</span>
+                </div>
+
+                {/* 5. Approval Rate */}
+                <div className="glass-panel p-4 rounded-xl border border-slate-800 space-y-1">
+                  <span className="text-[10px] font-mono font-semibold uppercase text-slate-400 block">5. Approval Rate</span>
+                  <div className="text-2xl font-bold text-emerald-400 font-mono">{approvalRate}%</div>
+                  <span className="text-[10px] text-slate-500">Editorial acceptance</span>
+                </div>
+
+                {/* 6. Rejection Rate */}
+                <div className="glass-panel p-4 rounded-xl border border-slate-800 space-y-1">
+                  <span className="text-[10px] font-mono font-semibold uppercase text-slate-400 block">6. Rejection Rate</span>
+                  <div className="text-2xl font-bold text-rose-400 font-mono">{rejectionRate}%</div>
+                  <span className="text-[10px] text-slate-500">Feedback trigger rate</span>
+                </div>
+
+                {/* 7. Avg Compliance Score */}
+                <div className="glass-panel p-4 rounded-xl border border-slate-800 space-y-1">
+                  <span className="text-[10px] font-mono font-semibold uppercase text-slate-400 block">7. Avg Compliance</span>
+                  <div className="text-2xl font-bold text-cyan-400 font-mono">{summary.average_compliance_score}%</div>
+                  <span className="text-[10px] text-slate-500">MAS / MOH safety score</span>
+                </div>
+
+                {/* 8. Avg Lead Fit Score */}
+                <div className="glass-panel p-4 rounded-xl border border-slate-800 space-y-1">
+                  <span className="text-[10px] font-mono font-semibold uppercase text-slate-400 block">8. Avg Lead Fit</span>
+                  <div className="text-2xl font-bold text-indigo-400 font-mono">{summary.average_lead_score}%</div>
+                  <span className="text-[10px] text-slate-500">B2B buyer match</span>
+                </div>
+
+                {/* 9. Active Lessons */}
+                <div className="glass-panel p-4 rounded-xl border border-slate-800 space-y-1">
+                  <span className="text-[10px] font-mono font-semibold uppercase text-slate-400 block">9. Active Lessons</span>
+                  <div className="text-2xl font-bold text-purple-400 font-mono">
+                    {summary.active_lessons_count !== undefined ? summary.active_lessons_count : summary.total_lessons_learned}
+                  </div>
+                  <span className="text-[10px] text-slate-500">Steering future prompts</span>
+                </div>
+
+                {/* 10. Feedback Volume */}
+                <div className="glass-panel p-4 rounded-xl border border-slate-800 space-y-1">
+                  <span className="text-[10px] font-mono font-semibold uppercase text-slate-400 block">10. Feedback Volume</span>
+                  <div className="text-2xl font-bold text-teal-400 font-mono">
+                    {summary.total_feedback_count !== undefined ? summary.total_feedback_count : feedbacks.length}
+                  </div>
+                  <span className="text-[10px] text-slate-500">Reviewer audits recorded</span>
                 </div>
               </div>
-              <div className="glass-panel p-5 rounded-2xl border border-slate-800">
-                <span className="text-xs text-slate-400">Editorial Rejection Rate</span>
-                <div className="text-2xl font-bold text-rose-400 mt-2">{summary.rejection_rate}%</div>
-              </div>
-              <div className="glass-panel p-5 rounded-2xl border border-slate-800">
-                <span className="text-xs text-slate-400">Avg Lead Fit Score</span>
-                <div className="text-2xl font-bold text-cyan-300 mt-2">{summary.average_lead_score}%</div>
-              </div>
-              <div className="glass-panel p-5 rounded-2xl border border-slate-800">
-                <span className="text-xs text-slate-400">Regeneration Cycles</span>
-                <div className="text-2xl font-bold text-purple-300 mt-2">{summary.regeneration_count}</div>
-              </div>
-            </div>
 
-            {/* Breakdown Charts / Bars */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="glass-panel p-6 rounded-2xl border border-slate-800 space-y-4">
-                <h3 className="font-semibold text-xs text-slate-300 uppercase tracking-wider">Content by Brand</h3>
-                <div className="space-y-3">
-                  {Object.entries(summary.brand_breakdown).map(([brand, count]) => (
-                    <div key={brand} className="space-y-1 text-xs">
-                      <div className="flex justify-between text-slate-300 capitalize">
-                        <span>{brand}</span>
-                        <span className="font-mono">{count} items</span>
-                      </div>
-                      <div className="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
-                        <div
-                          className="h-full bg-blue-500 rounded-full"
-                          style={{ width: `${Math.min(100, (count / summary.total_content) * 100)}%` }}
+              {/* Visualizations Grid */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Visual 1: Approval vs. Rejection Governance Distribution */}
+                <div className="glass-panel p-6 rounded-2xl border border-slate-800 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2">
+                      <PieChart className="w-4 h-4 text-emerald-400" />
+                      Approval vs. Rejection Distribution
+                    </h3>
+                    <span className="text-[11px] font-mono text-slate-400">Total: {tot} Items</span>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-center justify-around gap-6 pt-2">
+                    {/* SVG Donut */}
+                    <div className="relative w-36 h-36 shrink-0">
+                      <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
+                        {/* Background track */}
+                        <circle
+                          cx="50"
+                          cy="50"
+                          r="36"
+                          fill="transparent"
+                          stroke="#1e293b"
+                          strokeWidth="14"
                         />
+                        {/* Approved segment */}
+                        {tot > 0 && (
+                          <circle
+                            cx="50"
+                            cy="50"
+                            r="36"
+                            fill="transparent"
+                            stroke="#10b981"
+                            strokeWidth="14"
+                            strokeDasharray={`${apprStroke} ${c}`}
+                            strokeDashoffset="0"
+                            className="transition-all duration-500"
+                          />
+                        )}
+                        {/* Rejected segment */}
+                        {tot > 0 && rej > 0 && (
+                          <circle
+                            cx="50"
+                            cy="50"
+                            r="36"
+                            fill="transparent"
+                            stroke="#f43f5e"
+                            strokeWidth="14"
+                            strokeDasharray={`${rejStroke} ${c}`}
+                            strokeDashoffset={String(-apprStroke)}
+                            className="transition-all duration-500"
+                          />
+                        )}
+                        {/* Pending segment */}
+                        {tot > 0 && pend > 0 && (
+                          <circle
+                            cx="50"
+                            cy="50"
+                            r="36"
+                            fill="transparent"
+                            stroke="#f59e0b"
+                            strokeWidth="14"
+                            strokeDasharray={`${pendStroke} ${c}`}
+                            strokeDashoffset={String(-(apprStroke + rejStroke))}
+                            className="transition-all duration-500"
+                          />
+                        )}
+                      </svg>
+                      {/* Center label */}
+                      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                        <span className="text-xl font-bold font-mono text-white">{approvalRate}%</span>
+                        <span className="text-[10px] text-slate-400 uppercase font-semibold">Pass Rate</span>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </div>
 
-              <div className="glass-panel p-6 rounded-2xl border border-slate-800 space-y-4">
-                <h3 className="font-semibold text-xs text-slate-300 uppercase tracking-wider">Top Feedback Rejection Reasons</h3>
-                <div className="space-y-3">
-                  {Object.entries(summary.feedback_reason_frequency).map(([reason, count]) => (
-                    <div key={reason} className="space-y-1 text-xs">
+                    {/* Donut Legend */}
+                    <div className="space-y-2.5 w-full max-w-xs text-xs">
+                      <div className="flex items-center justify-between p-2 rounded-lg bg-slate-900/60 border border-slate-800">
+                        <span className="flex items-center gap-2 text-slate-300">
+                          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                          Human Approved
+                        </span>
+                        <span className="font-mono font-semibold text-emerald-400">
+                          {appr} ({approvalRate}%)
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between p-2 rounded-lg bg-slate-900/60 border border-slate-800">
+                        <span className="flex items-center gap-2 text-slate-300">
+                          <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
+                          Rejected & Learned
+                        </span>
+                        <span className="font-mono font-semibold text-rose-400">
+                          {rej} ({rejectionRate}%)
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between p-2 rounded-lg bg-slate-900/60 border border-slate-800">
+                        <span className="flex items-center gap-2 text-slate-300">
+                          <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+                          Pending Human Review
+                        </span>
+                        <span className="font-mono font-semibold text-amber-400">
+                          {pend} ({pendingRate}%)
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Visual 2: Regulatory Compliance Health Bands */}
+                <div className="glass-panel p-6 rounded-2xl border border-slate-800 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2">
+                      <ShieldCheck className="w-4 h-4 text-cyan-400" />
+                      Regulatory Compliance Health Bands
+                    </h3>
+                    <span className="text-[11px] font-mono text-cyan-400">Avg {summary.average_compliance_score}%</span>
+                  </div>
+
+                  {/* Segmented Stacked Progress Bar */}
+                  <div className="w-full h-4 rounded-full bg-slate-800 overflow-hidden flex">
+                    <div
+                      style={{ width: `${(highComp / compTotal) * 100}%` }}
+                      className="bg-emerald-500 h-full transition-all"
+                      title={`90-100%: ${highComp}`}
+                    />
+                    <div
+                      style={{ width: `${(medComp / compTotal) * 100}%` }}
+                      className="bg-amber-500 h-full transition-all"
+                      title={`80-89%: ${medComp}`}
+                    />
+                    <div
+                      style={{ width: `${(lowComp / compTotal) * 100}%` }}
+                      className="bg-rose-500 h-full transition-all"
+                      title={`<80%: ${lowComp}`}
+                    />
+                  </div>
+
+                  {/* Detail Band Cards */}
+                  <div className="grid grid-cols-3 gap-2 pt-1 text-xs">
+                    <div className="p-3 rounded-xl bg-emerald-950/20 border border-emerald-900/40 space-y-1">
+                      <span className="text-[10px] font-mono font-bold text-emerald-400 block">90 - 100%</span>
+                      <div className="text-base font-bold text-emerald-300 font-mono">{highComp} items</div>
+                      <span className="text-[10px] text-emerald-400/80">High Confidence</span>
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-amber-950/20 border border-amber-900/40 space-y-1">
+                      <span className="text-[10px] font-mono font-bold text-amber-400 block">80 - 89%</span>
+                      <div className="text-base font-bold text-amber-300 font-mono">{medComp} items</div>
+                      <span className="text-[10px] text-amber-400/80">Compliant / Audit OK</span>
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-rose-950/20 border border-rose-900/40 space-y-1">
+                      <span className="text-[10px] font-mono font-bold text-rose-400 block">&lt; 80%</span>
+                      <div className="text-base font-bold text-rose-300 font-mono">{lowComp} items</div>
+                      <span className="text-[10px] text-rose-400/80">Rewrite Required</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Visual 3: Content Production by Brand */}
+                <div className="glass-panel p-6 rounded-2xl border border-slate-800 space-y-4">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2">
+                    <BarChart3 className="w-4 h-4 text-blue-400" />
+                    Content Production by Brand
+                  </h3>
+
+                  <div className="space-y-3 pt-1">
+                    {Object.entries(summary.brand_breakdown).length === 0 ? (
+                      <div className="text-xs text-slate-500 py-4 text-center">No brand data recorded</div>
+                    ) : (
+                      Object.entries(summary.brand_breakdown).map(([brand, count]) => {
+                        const pct = tot > 0 ? ((count / tot) * 100).toFixed(0) : 0;
+                        const brandColor = 
+                          brand === 'jade' ? 'bg-emerald-500' :
+                          brand === 'doctorshield' ? 'bg-blue-500' :
+                          brand === 'jaguartransit' ? 'bg-amber-500' : 'bg-cyan-500';
+                        return (
+                          <div key={brand} className="space-y-1.5 text-xs">
+                            <div className="flex justify-between text-slate-300 font-medium">
+                              <span className="capitalize">{brand === 'jaguartransit' ? 'Jaguar Transit' : brand === 'doctorshield' ? 'DoctorShield' : 'Jade'}</span>
+                              <span className="font-mono text-slate-400">{count} items ({pct}%)</span>
+                            </div>
+                            <div className="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
+                              <div
+                                className={`h-full ${brandColor} rounded-full transition-all`}
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+
+                {/* Visual 4: Content by Target Platform */}
+                <div className="glass-panel p-6 rounded-2xl border border-slate-800 space-y-4">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4 text-cyan-400" />
+                    Content by Target Platform
+                  </h3>
+
+                  <div className="space-y-3 pt-1">
+                    {Object.entries(summary.platform_breakdown).length === 0 ? (
+                      <div className="text-xs text-slate-500 py-4 text-center">No platform data recorded</div>
+                    ) : (
+                      Object.entries(summary.platform_breakdown).map(([platform, count]) => {
+                        const pct = tot > 0 ? ((count / tot) * 100).toFixed(0) : 0;
+                        return (
+                          <div key={platform} className="space-y-1.5 text-xs">
+                            <div className="flex justify-between text-slate-300 font-medium">
+                              <span className="capitalize">{platform}</span>
+                              <span className="font-mono text-slate-400">{count} items ({pct}%)</span>
+                            </div>
+                            <div className="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
+                              <div
+                                className="h-full bg-indigo-500 rounded-full transition-all"
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+
+                {/* Visual 5: Top Rejection Reasons */}
+                <div className="glass-panel p-6 rounded-2xl border border-slate-800 space-y-4">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2">
+                    <XCircle className="w-4 h-4 text-rose-400" />
+                    Top Rejection Reasons & Safety Blocks
+                  </h3>
+
+                  <div className="space-y-3 pt-1">
+                    {Object.entries(summary.feedback_reason_frequency).length === 0 ? (
+                      <div className="text-xs text-slate-500 py-4 text-center">No rejections recorded. 100% first-pass rate!</div>
+                    ) : (
+                      Object.entries(summary.feedback_reason_frequency).map(([reason, count]) => (
+                        <div key={reason} className="space-y-1.5 text-xs">
+                          <div className="flex justify-between text-slate-300">
+                            <span className="capitalize">{reason.replace(/_/g, ' ')}</span>
+                            <span className="font-mono text-rose-300 font-semibold">{count} occurrences</span>
+                          </div>
+                          <div className="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
+                            <div
+                              className="h-full bg-rose-500 rounded-full transition-all"
+                              style={{ width: `${Math.min(100, count * 20)}%` }}
+                            />
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Visual 6: B2B Lead Fit Score Tiers */}
+                <div className="glass-panel p-6 rounded-2xl border border-slate-800 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2">
+                      <Users className="w-4 h-4 text-indigo-400" />
+                      B2B Lead Score Distribution
+                    </h3>
+                    <span className="text-[11px] font-mono text-indigo-400">Avg {summary.average_lead_score}% Fit</span>
+                  </div>
+
+                  <div className="space-y-3 pt-1">
+                    <div className="space-y-1.5 text-xs">
                       <div className="flex justify-between text-slate-300">
-                        <span className="capitalize">{reason.replace('_', ' ')}</span>
-                        <span className="font-mono text-rose-300">{count} times</span>
+                        <span>Tier 1: High Intent (80 - 100%)</span>
+                        <span className="font-mono text-emerald-400 font-semibold">{t1} leads</span>
                       </div>
                       <div className="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
-                        <div
-                          className="h-full bg-rose-500 rounded-full"
-                          style={{ width: `${Math.min(100, count * 25)}%` }}
-                        />
+                        <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${(t1 / leadTotal) * 100}%` }} />
                       </div>
                     </div>
-                  ))}
+
+                    <div className="space-y-1.5 text-xs">
+                      <div className="flex justify-between text-slate-300">
+                        <span>Tier 2: Moderate Intent (60 - 79%)</span>
+                        <span className="font-mono text-cyan-400 font-semibold">{t2} leads</span>
+                      </div>
+                      <div className="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
+                        <div className="h-full bg-cyan-500 rounded-full transition-all" style={{ width: `${(t2 / leadTotal) * 100}%` }} />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5 text-xs">
+                      <div className="flex justify-between text-slate-300">
+                        <span>Tier 3: Emerging Incubator (&lt; 60%)</span>
+                        <span className="font-mono text-slate-400 font-semibold">{t3} leads</span>
+                      </div>
+                      <div className="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
+                        <div className="h-full bg-slate-600 rounded-full transition-all" style={{ width: `${(t3 / leadTotal) * 100}%` }} />
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
+
+              {/* Visual 7 (Full Width): Simulated Publishing Dispatch Activity Log */}
+              <div className="glass-panel p-6 rounded-2xl border border-slate-800 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
+                  <div>
+                    <h3 className="font-bold text-sm text-slate-100 flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-cyan-400" />
+                      Simulated Publishing Dispatch Log (SQLite Records)
+                    </h3>
+                    <p className="text-xs text-slate-400">
+                      Human-approved content staged for simulated publishing. No live social API keys are triggered.
+                    </p>
+                  </div>
+                  <span className="text-[11px] font-mono px-2.5 py-0.5 rounded-full bg-blue-500/10 text-cyan-300 border border-blue-500/30 w-fit">
+                    SIMULATED DISPATCH ONLY
+                  </span>
+                </div>
+
+                {publishingRecords.length === 0 ? (
+                  <div className="text-center py-8 text-xs text-slate-500 space-y-1">
+                    <p className="font-medium text-slate-400">No simulated dispatches scheduled yet.</p>
+                    <p>Approve items in the Review Center and click "Schedule Dispatch Preview" to simulate posting.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs text-left">
+                      <thead className="text-[11px] text-slate-400 uppercase font-mono border-b border-slate-800/80">
+                        <tr>
+                          <th className="py-2.5 px-3">Record ID</th>
+                          <th className="py-2.5 px-3">Content ID</th>
+                          <th className="py-2.5 px-3">Target Platform</th>
+                          <th className="py-2.5 px-3">Scheduled At</th>
+                          <th className="py-2.5 px-3">Dispatch Mode</th>
+                          <th className="py-2.5 px-3">Status</th>
+                          <th className="py-2.5 px-3 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800/60 font-sans">
+                        {publishingRecords.map(rec => (
+                          <tr key={rec.id} className="hover:bg-slate-900/40 transition-colors">
+                            <td className="py-3 px-3 font-mono font-semibold text-slate-300">#{rec.id}</td>
+                            <td className="py-3 px-3 font-mono text-cyan-400">Item #{rec.content_id}</td>
+                            <td className="py-3 px-3 capitalize font-semibold text-slate-200">{rec.platform}</td>
+                            <td className="py-3 px-3 text-slate-300 font-mono">
+                              {rec.scheduled_at ? new Date(rec.scheduled_at).toLocaleString() : 'Immediate'}
+                            </td>
+                            <td className="py-3 px-3">
+                              <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-cyan-500/10 text-cyan-300 border border-cyan-500/30">
+                                Simulated Preview
+                              </span>
+                            </td>
+                            <td className="py-3 px-3">
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase ${
+                                rec.status === 'scheduled' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40' :
+                                rec.status === 'cancelled' ? 'bg-slate-800 text-slate-400 border border-slate-700' :
+                                'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                              }`}>
+                                {rec.status}
+                              </span>
+                            </td>
+                            <td className="py-3 px-3 text-right">
+                              {rec.status === 'scheduled' ? (
+                                <button
+                                  onClick={() => handleCancelPublishing(rec.id)}
+                                  disabled={actionLoading === `cancel-pub-${rec.id}`}
+                                  className="px-2.5 py-1 rounded bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 text-[11px] transition-colors cursor-pointer"
+                                >
+                                  Cancel Dispatch
+                                </button>
+                              ) : (
+                                <span className="text-[11px] text-slate-600 font-mono">—</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
       </main>
 
       {/* REJECTION / FEEDBACK MODAL */}
@@ -1485,6 +2063,129 @@ export function App() {
               >
                 <Sparkles className="w-3.5 h-3.5" />
                 {actionLoading?.startsWith('enrich-') ? 'Enriching...' : 'Enrich Prospect'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PUBLISHING PREVIEW MODAL (Human-Controlled Simulated Dispatch) */}
+      {publishingModalItem && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-xl w-full p-6 space-y-4 shadow-2xl overflow-y-auto max-h-[90vh]">
+            <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-cyan-500/20 text-cyan-400 flex items-center justify-center">
+                  <Calendar className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-slate-100">Schedule Publishing Preview</h3>
+                  <p className="text-[11px] text-slate-400">Human-governed dispatch simulation</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setPublishingModalItem(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Simulated Dispatch Disclaimer Banner */}
+            <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-3 text-amber-200 text-xs">
+              <Info className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <div className="space-y-0.5">
+                <p className="font-bold text-amber-300">SIMULATED DISPATCH — No external post has been published.</p>
+                <p className="text-[11px] text-amber-200/80 leading-relaxed">
+                  Strict governance enforced: only verified human-approved content can reach this staging queue. No live social media OAuth or external posting APIs are triggered.
+                </p>
+              </div>
+            </div>
+
+            {/* Governance Metadata Badges */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 bg-slate-950/60 p-3 rounded-xl border border-slate-800/80 text-xs">
+              <div>
+                <span className="text-[10px] uppercase font-mono text-slate-400 font-semibold block">Brand Persona</span>
+                <div className="mt-1">{getBrandBadge(publishingModalItem.brand)}</div>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-mono text-slate-400 font-semibold block">Compliance Score</span>
+                <span className="inline-block mt-1 px-2 py-0.5 rounded font-mono font-bold text-xs bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                  {publishingModalItem.compliance_score}% (PASSED)
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-mono text-slate-400 font-semibold block">Governance Gate</span>
+                <span className="inline-block mt-1 px-2 py-0.5 rounded font-mono font-bold text-xs bg-blue-500/20 text-cyan-300 border border-blue-500/30">
+                  Human Signed-Off
+                </span>
+              </div>
+            </div>
+
+            {/* Platform & Schedule Configuration */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+              <div>
+                <label className="text-slate-300 font-medium block">Destination Platform</label>
+                <select
+                  value={scheduledPlatform}
+                  onChange={(e) => setScheduledPlatform(e.target.value)}
+                  className="w-full mt-1 bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-slate-200 text-xs focus:ring-1 focus:ring-cyan-500"
+                >
+                  <option value="linkedin">LinkedIn (Simulated Feed)</option>
+                  <option value="instagram">Instagram (Simulated Feed)</option>
+                  <option value="facebook">Facebook (Simulated Page)</option>
+                  <option value="x">X / Twitter (Simulated Stream)</option>
+                  <option value="email">Email Newsletter (Simulated Dispatch)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-slate-300 font-medium block">Scheduled Date & Time</label>
+                <input
+                  type="datetime-local"
+                  value={scheduledTime}
+                  onChange={(e) => setScheduledTime(e.target.value)}
+                  className="w-full mt-1 bg-slate-800 border border-slate-700 rounded-lg p-2 text-slate-200 text-xs focus:ring-1 focus:ring-cyan-500"
+                />
+              </div>
+            </div>
+
+            {/* Mock Destination Route */}
+            <div className="text-[11px] font-mono text-slate-400 bg-slate-950/70 p-2.5 rounded-lg border border-slate-800/80 flex items-center justify-between">
+              <span>Estimated Mock Dispatch Target:</span>
+              <span className="text-cyan-400">api.dispatch.simulated/{scheduledPlatform}/v1/queue</span>
+            </div>
+
+            {/* Content Preview Box */}
+            <div className="space-y-1.5 text-xs">
+              <label className="text-slate-400 font-medium">Draft Preview for Reviewer Verification</label>
+              <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2">
+                <div className="flex items-center justify-between text-slate-500 text-[11px] font-mono border-b border-slate-800/60 pb-2">
+                  <span className="capitalize font-semibold text-slate-300">{scheduledPlatform} Post Preview</span>
+                  <span>{publishingModalItem.language.toUpperCase()} • Item #{publishingModalItem.id}</span>
+                </div>
+                <h4 className="font-semibold text-slate-200 text-xs">{publishingModalItem.topic}</h4>
+                <p className="text-xs text-slate-300 whitespace-pre-line leading-relaxed font-sans max-h-48 overflow-y-auto">
+                  {publishingModalItem.content_raw}
+                </p>
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-800/80">
+              <button
+                onClick={() => setPublishingModalItem(null)}
+                className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmSchedule}
+                disabled={actionLoading?.startsWith('schedule-')}
+                className="px-5 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold flex items-center gap-2 shadow-lg shadow-cyan-600/30 transition-all cursor-pointer"
+              >
+                <Calendar className="w-4 h-4" />
+                {actionLoading?.startsWith('schedule-') ? 'Scheduling Dispatch...' : 'Confirm Schedule Preview'}
               </button>
             </div>
           </div>

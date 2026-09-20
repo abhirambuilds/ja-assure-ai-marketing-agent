@@ -138,6 +138,19 @@ export interface ComplianceResult {
   disclaimers_required: string[];
 }
 
+export interface PublishingRecord {
+  id: number;
+  content_id: number;
+  platform: string;
+  external_post_id?: string;
+  status: string;
+  scheduled_at?: string;
+  published_at?: string;
+  engagement_metrics?: string;
+  error_info?: string;
+  created_at: string;
+}
+
 export interface DashboardSummary {
   total_content: number;
   pending_compliance: number;
@@ -148,16 +161,22 @@ export interface DashboardSummary {
   rejected: number;
   edited: number;
   published: number;
+  approval_rate?: number;
   rejection_rate: number;
   average_compliance_score: number;
   total_leads: number;
   average_lead_score: number;
   total_lessons_learned: number;
+  active_lessons_count?: number;
+  total_feedback_count?: number;
   regeneration_count: number;
   brand_breakdown: Record<string, number>;
   platform_breakdown: Record<string, number>;
   language_breakdown: Record<string, number>;
   feedback_reason_frequency: Record<string, number>;
+  compliance_score_distribution?: Record<string, number>;
+  lead_score_distribution?: Record<string, number>;
+  status_breakdown?: Record<string, number>;
 }
 
 export interface HealthCheckResponse {

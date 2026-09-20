@@ -8,7 +8,8 @@ import type {
   HealthCheckResponse,
   GeneratedVariation,
   VideoScript,
-  ComplianceResult
+  ComplianceResult,
+  PublishingRecord
 } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
@@ -235,5 +236,31 @@ export const api = {
   getFeedback: async (): Promise<Feedback[]> => {
     const res = await fetch(`${API_BASE_URL}/feedback`);
     return handleResponse<Feedback[]>(res);
+  },
+
+  // Publishing (Simulated Dispatch Preview)
+  getPublishingRecords: async (): Promise<PublishingRecord[]> => {
+    const res = await fetch(`${API_BASE_URL}/publishing`);
+    return handleResponse<PublishingRecord[]>(res);
+  },
+
+  schedulePublishing: async (payload: {
+    content_id: number;
+    platform?: string;
+    scheduled_at?: string;
+  }): Promise<PublishingRecord> => {
+    const res = await fetch(`${API_BASE_URL}/publishing`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    return handleResponse<PublishingRecord>(res);
+  },
+
+  cancelPublishing: async (recordId: number): Promise<PublishingRecord> => {
+    const res = await fetch(`${API_BASE_URL}/publishing/${recordId}/cancel`, {
+      method: 'PATCH',
+    });
+    return handleResponse<PublishingRecord>(res);
   }
 };

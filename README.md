@@ -6,7 +6,7 @@
 [![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS-v4-38B2AC.svg?logo=tailwind-css&logoColor=white)](https://tailwindcss.com)
 [![Python](https://img.shields.io/badge/Python-3.13+-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)
 [![Google Gemini](https://img.shields.io/badge/Google_Gemini-1.5_Pro-4285F4.svg?logo=google&logoColor=white)](https://ai.google.dev/)
-[![Tests](https://img.shields.io/badge/Tests-16%20Passed-success.svg)](#-verification--automated-tests)
+[![Tests](https://img.shields.io/badge/Tests-19%20Passed-success.svg)](#-verification--automated-tests)
 
 > **An autonomous, multi-brand agentic marketing, regulatory compliance, and lead intelligence platform for JA Assure across Southeast Asia.**
 
@@ -75,6 +75,7 @@ The **JA Assure AI Marketing Agent** deploys an integrated multi-agent system ("
 | 🎬 **Video / Reels Storyboarder** | Generates 30–60 second multi-scene video scripts complete with visual cues, voiceover scripts, on-screen text overlays, and audio direction. |
 | 🎯 **Lead Intelligence & Scoring** | 5-factor scoring algorithm (0–100) evaluating Industry Fit, Risk Exposure, Premium Capacity, Geographic Fit, and Digital Footprint. |
 | 📊 **Real-Time Analytics** | Complete executive dashboard tracking content lifecycle metrics, compliance distribution, rejection causes, and learning metrics. |
+| 📅 **Simulated Publishing Dispatch Preview** | Human-controlled scheduling workflow storing records in SQLite with strict human approval gates. Explicitly simulated with zero external social API claims. |
 | 📴 **Offline Deterministic Fallback** | Seamlessly operates in full interactive demo mode when Google Gemini API keys are absent or network is restricted. |
 
 ---
@@ -264,7 +265,7 @@ DATABASE_URL=sqlite:///./data/ja_assure.db
 
 ## 🧪 9. Verification & Automated Tests
 
-### Run Backend Test Suite (16 Automated Tests)
+### Run Backend Test Suite (19 Automated Tests)
 ```powershell
 backend\venv\Scripts\pytest -c backend\pytest.ini backend\tests -v
 ```
@@ -276,7 +277,9 @@ backend\venv\Scripts\pytest -c backend\pytest.ini backend\tests -v
 - Queue approval, rejection, and inline edit workflows
 - Closed-loop feedback synthesis into active lessons
 - Lead scoring & personalized outreach generation
-- Analytics KPI aggregation
+- Analytics KPI aggregation & health distributions
+- Strict publishing governance (blocks unapproved/non-compliant content)
+- Simulated publishing dispatch lifecycle & cancellation
 
 ### Verify Frontend Production Build
 ```powershell
@@ -333,6 +336,13 @@ Follow this step-by-step sequence to demo the full platform to evaluators:
 ### Step F: Competitors & Analytics (`Competitors` and `Analytics` tabs)
 1. **Competitor Intelligence**: Review scraped competitor movements, pricing shifts, and recommended JA Assure counter-strategies.
 2. **Analytics**: Inspect real-time compliance score distribution, rejection breakdown by reason, and continuous learning velocity.
+
+### Step G: Human-Controlled Publishing Dispatch Preview (`Review Center` → Approved Tab)
+1. In the **Review Center**, switch to the **Approved** filter.
+2. Only human-approved drafts feature the **"Schedule Dispatch Preview"** action (pending and rejected content cannot be scheduled).
+3. Click **"Schedule Dispatch Preview"** to inspect the simulated platform card, verify destination routing, select target date/time, and confirm.
+4. The dispatch record is persisted in SQLite with status `scheduled`.
+5. View scheduled dispatches and operational logs under the **Analytics** workspace, with full capability to cancel or reschedule. Notice the explicit governance disclaimer: *"SIMULATED DISPATCH — No external post has been published."*
 
 ---
 

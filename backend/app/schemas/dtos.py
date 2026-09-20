@@ -1,5 +1,5 @@
 from typing import List, Optional, Dict, Any
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from datetime import datetime
 from app.schemas.agent_contracts import (
     ResearchInsight,
@@ -156,16 +156,22 @@ class DashboardSummary(BaseModel):
     rejected: int
     edited: int = 0
     published: int
-    rejection_rate: float
+    approval_rate: float = 0.0
+    rejection_rate: float = 0.0
     average_compliance_score: float
     total_leads: int
     average_lead_score: float
     total_lessons_learned: int
+    active_lessons_count: int = 0
+    total_feedback_count: int = 0
     regeneration_count: int = 0
     brand_breakdown: Dict[str, int]
     platform_breakdown: Dict[str, int]
     language_breakdown: Dict[str, int]
     feedback_reason_frequency: Dict[str, int]
+    compliance_score_distribution: Dict[str, int] = Field(default_factory=dict)
+    lead_score_distribution: Dict[str, int] = Field(default_factory=dict)
+    status_breakdown: Dict[str, int] = Field(default_factory=dict)
 
 # ----------------- Publishing DTOs -----------------
 class PublishingRecordBase(BaseModel):
