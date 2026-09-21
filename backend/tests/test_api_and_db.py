@@ -103,7 +103,7 @@ def test_publishing_strict_governance_rejection():
             "platform": "linkedin"
         })
         assert pub_res.status_code == 400
-        assert "Only human-approved content can reach publishing dispatch" in pub_res.json()["detail"]
+        assert "Cannot schedule content unless status='approved'" in pub_res.json()["detail"]
 
     # Non-existent item should return 404
     pub_res_none = client.post("/api/v1/publishing", json={

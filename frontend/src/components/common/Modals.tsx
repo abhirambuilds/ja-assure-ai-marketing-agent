@@ -291,7 +291,7 @@ export const Modals: React.FC<ModalsProps> = ({
             <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
               <h3 className="font-bold text-sm text-slate-100 flex items-center gap-2">
                 <FileText className="w-4 h-4 text-amber-400" />
-                Edit & Approve Copy
+                Edit Copy
               </h3>
               <button 
                 onClick={() => setEditModalItem(null)} 
@@ -300,6 +300,10 @@ export const Modals: React.FC<ModalsProps> = ({
                 <X className="w-4 h-4" />
               </button>
             </div>
+
+            <p className="text-[11px] text-slate-400 -mt-1">
+              Saving sends this edit back to Human Review — it does not approve the content. A reviewer must sign off on the new version separately.
+            </p>
 
             <div className="space-y-2 text-xs">
               <label className="text-slate-300 font-medium block">Corrected Marketing Text</label>
@@ -323,7 +327,7 @@ export const Modals: React.FC<ModalsProps> = ({
                 disabled={actionLoading?.startsWith('edit-')}
                 className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-lg shadow-emerald-600/30 cursor-pointer"
               >
-                Save & Approve Copy
+                Save & Resubmit for Review
               </button>
             </div>
           </div>

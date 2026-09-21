@@ -55,7 +55,10 @@ def test_compliance_check_and_rewrite():
     assert r_data["human_review_required"] is True
 
 def test_queue_rewrite_endpoint():
-    # Create or ensure an item is in rejected status
+    # Create or ensure an item is awaiting human review (non-compliant text) so the
+    # rewrite endpoint has something to fix. Rewrite is only legal from a HUMAN_REVIEW
+    # status (see hitl_service) — "rejected" is intentionally not one of them (a rejected
+    # item must be re-drafted via /regenerate, not silently rewritten).
     create_res = client.post("/api/v1/queue", json={
         "brand": "jade",
         "platform": "facebook",
@@ -65,7 +68,7 @@ def test_queue_rewrite_endpoint():
         "variation": "A",
         "language": "en",
         "compliance_status": "failed",
-        "status": "rejected",
+        "status": "pending",
         "compliance_score": 45.0,
         "reason_tag": "false_guarantee",
         "notes": "Flagged for false guarantee"

@@ -6,6 +6,7 @@ from sqlalchemy import select, desc
 from app.database.session import get_db
 from app.models.entities import PublishingRecord, ContentQueue
 from app.schemas.dtos import PublishingRecordCreate, PublishingRecordResponse
+from app.services.hitl_service import is_publishable
 
 router = APIRouter(prefix="/publishing", tags=["Publishing"])
 
@@ -31,27 +32,24 @@ def get_publishing_record(record_id: int, db: Session = Depends(get_db)):
 def schedule_publishing(item_in: PublishingRecordCreate, db: Session = Depends(get_db)):
     """
     Human-controlled publishing dispatch preview.
-    STRICT GOVERNANCE RULES:
-    1. Only human-approved content can reach simulated dispatch.
-    2. Rejects pending, rejected, or non-compliant content.
-    3. Persists dispatch record in SQLite with status 'scheduled'.
+    STRICT GOVERNANCE RULES (single source of truth: app.services.hitl_service.is_publishable):
+    1. Only human-approved (status == 'approved') content can reach simulated dispatch.
+    2. AND compliance_status must be exactly 'passed' — pending, human_review, rejected,
+       and compliance-flagged/failed content are all rejected, regardless of score.
+    3. Persists dispatch record in SQLite/Postgres with status 'scheduled'.
     """
     content = db.get(ContentQueue, item_in.content_id)
     if not content:
         raise HTTPException(status_code=404, detail=f"Content item #{item_in.content_id} not found")
 
-    # Strict approval gate
-    if content.status != "approved":
+    if not is_publishable(content.status, content.compliance_status):
         raise HTTPException(
             status_code=400,
-            detail=f"Cannot schedule content with status '{content.status}'. Only human-approved content can reach publishing dispatch."
-        )
-
-    # Strict compliance gate
-    if content.compliance_status not in ["passed", "compliant"] and content.compliance_score < 80.0:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Cannot schedule non-compliant content (Score: {content.compliance_score}/100, Status: {content.compliance_status})."
+            detail=(
+                f"Cannot schedule content unless status='approved' AND compliance_status='passed'. "
+                f"Current: status='{content.status}', compliance_status='{content.compliance_status}' "
+                f"(score={content.compliance_score})."
+            )
         )
 
     # Create dispatch record

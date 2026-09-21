@@ -35,24 +35,46 @@ class ContentQueueCreate(ContentQueueBase):
     pass
 
 class ContentQueueUpdate(BaseModel):
+    """
+    Metadata-only patch DTO. Deliberately excludes `status`, `compliance_status`,
+    `compliance_score`, and `content_raw` — those fields are HITL-governed and may only
+    change through the dedicated /queue/{id}/approve|reject|edit|rewrite|regenerate
+    actions, which route through app.services.hitl_service. This is what prevents a
+    direct PATCH from fabricating an "approved" or "passed" asset. See hitl_service.py.
+    """
     brand: Optional[str] = None
     platform: Optional[str] = None
     content_type: Optional[str] = None
     topic: Optional[str] = None
-    content_raw: Optional[str] = None
     variation: Optional[str] = None
     language: Optional[str] = None
-    compliance_status: Optional[str] = None
-    status: Optional[str] = None
-    compliance_score: Optional[float] = None
     reason_tag: Optional[str] = None
     notes: Optional[str] = None
     metadata_json: Optional[str] = None
 
 class ContentQueueResponse(ContentQueueBase):
     id: int
+    original_content_raw: Optional[str] = None
     created_at: datetime
     updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+# ----------------- Review Decision DTOs (HITL audit trail) -----------------
+class ReviewDecisionResponse(BaseModel):
+    id: int
+    asset_type: str
+    asset_id: int
+    reviewer: str
+    decision: str
+    reason_tag: Optional[str] = None
+    notes: Optional[str] = None
+    original_content: Optional[str] = None
+    edited_content: Optional[str] = None
+    compliance_score: Optional[float] = None
+    previous_status: str
+    new_status: str
+    created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
 

@@ -4,19 +4,26 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy import select, desc
 from app.database.session import get_db
-from app.models.entities import ContentQueue, Feedback
+from app.models.entities import ContentQueue, Feedback, ReviewDecision
 from app.schemas.dtos import (
     ContentQueueCreate,
     ContentQueueUpdate,
     ContentQueueResponse,
+    ReviewDecisionResponse,
 )
-from app.schemas.agent_contracts import HumanReviewAction
 from app.services.compliance_service import compliance_service
 from app.services.lessons_service import lessons_service
 from app.services.content_service import content_service
 from app.schemas.agent_contracts import ContentBrief
+from app.services import hitl_service
+from app.services.hitl_service import HITLTransitionError
 
 router = APIRouter(prefix="/queue", tags=["Content Queue & Human Review"])
+
+# Statuses that must never be assignable at creation time via the public API.
+# Publish-readiness may only be reached by walking the HITL state machine
+# (see app.services.hitl_service), never by fabricating a row directly.
+_PRIVILEGED_STATUSES = {"approved", "scheduled", "published"}
 
 class RejectRequest(BaseModel):
     reason_tag: str
@@ -77,19 +84,60 @@ def get_queue_item(item_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail=f"Content item {item_id} not found")
     return item
 
+@router.get("/{item_id}/history", response_model=List[ReviewDecisionResponse])
+def get_review_history(item_id: int, db: Session = Depends(get_db)):
+    """
+    Full HITL audit trail for a content item: every approve/reject/edit/rewrite/regenerate
+    decision, who made it, what changed, and the status transition it caused.
+    """
+    item = db.get(ContentQueue, item_id)
+    if not item:
+        raise HTTPException(status_code=404, detail=f"Content item {item_id} not found")
+    query = (
+        select(ReviewDecision)
+        .where(ReviewDecision.asset_type == "content_queue", ReviewDecision.asset_id == item_id)
+        .order_by(ReviewDecision.created_at)
+    )
+    return db.execute(query).scalars().all()
+
 @router.post("/{item_id}/approve", response_model=ContentQueueResponse)
-def approve_content(item_id: int, notes: Optional[str] = None, db: Session = Depends(get_db)):
+def approve_content(
+    item_id: int,
+    notes: Optional[str] = None,
+    reviewer: Optional[str] = Query("compliance_officer"),
+    db: Session = Depends(get_db)
+):
     """
     Mandatory human approval action.
-    Advances content item to 'approved' status ready for scheduling/publishing.
+    Only legal from a HUMAN_REVIEW status (see hitl_service). Advances content item to
+    'approved', which is a NECESSARY but not SUFFICIENT condition to publish — the
+    publishing gate independently requires compliance_status == 'passed' as well.
     """
     item = db.get(ContentQueue, item_id)
     if not item:
         raise HTTPException(status_code=404, detail="Content item not found")
 
-    item.status = "approved"
+    previous_status = item.status
+    try:
+        new_status = hitl_service.assert_transition_allowed(previous_status, "approve")
+    except HITLTransitionError as e:
+        raise HTTPException(status_code=409, detail=e.message)
+
+    item.status = new_status
     if notes:
         item.notes = notes
+
+    hitl_service.record_decision(
+        db,
+        asset_id=item.id,
+        decision="approve",
+        previous_status=previous_status,
+        new_status=new_status,
+        reviewer=reviewer,
+        notes=notes,
+        compliance_score=item.compliance_score,
+    )
+
     db.commit()
     db.refresh(item)
     return item
@@ -98,17 +146,24 @@ def approve_content(item_id: int, notes: Optional[str] = None, db: Session = Dep
 def reject_content(item_id: int, req: RejectRequest, db: Session = Depends(get_db)):
     """
     Human rejection action.
-    Marks item as 'rejected' and synthesizes/updates an active Lesson Learned in the DB.
+    Only legal from a HUMAN_REVIEW status. Marks item as 'rejected' and synthesizes/updates
+    an active Lesson Learned in the DB (existing closed-loop behavior, unchanged).
     """
     item = db.get(ContentQueue, item_id)
     if not item:
         raise HTTPException(status_code=404, detail="Content item not found")
 
-    item.status = "rejected"
+    previous_status = item.status
+    try:
+        new_status = hitl_service.assert_transition_allowed(previous_status, "reject")
+    except HITLTransitionError as e:
+        raise HTTPException(status_code=409, detail=e.message)
+
+    item.status = new_status
     item.reason_tag = req.reason_tag
     item.notes = req.notes
 
-    # Ingest into closed-loop learning system
+    # Ingest into closed-loop learning system (unchanged existing behavior)
     lessons_service.record_feedback_and_synthesize(
         content_id=item.id,
         reason_tag=req.reason_tag,
@@ -116,34 +171,84 @@ def reject_content(item_id: int, req: RejectRequest, db: Session = Depends(get_d
         original_content=item.content_raw
     )
 
+    hitl_service.record_decision(
+        db,
+        asset_id=item.id,
+        decision="reject",
+        previous_status=previous_status,
+        new_status=new_status,
+        reviewer=req.reviewer,
+        reason_tag=req.reason_tag,
+        notes=req.notes,
+        original_content=item.content_raw,
+        compliance_score=item.compliance_score,
+    )
+
     db.commit()
     db.refresh(item)
     return item
 
 @router.post("/{item_id}/edit", response_model=ContentQueueResponse)
-def edit_content(item_id: int, req: EditRequest, db: Session = Depends(get_db)):
+async def edit_content(item_id: int, req: EditRequest, db: Session = Depends(get_db)):
     """
     Human edit action.
-    Preserves original text, updates content to corrected version, marks as 'approved',
-    and records feedback for learning.
+    Only legal from a HUMAN_REVIEW status. Preserves the original AI-generated text
+    (original_content_raw is set once and never overwritten), re-runs the compliance gate
+    against the EDITED text (stale pre-edit compliance results must not carry over), and
+    returns the item to 'human_review' — an edit is a NEW version that itself requires a
+    fresh human sign-off, it is never auto-approved.
     """
     item = db.get(ContentQueue, item_id)
     if not item:
         raise HTTPException(status_code=404, detail="Content item not found")
 
-    original_text = item.content_raw
-    item.content_raw = req.edited_content
-    item.status = "approved"
-    item.reason_tag = req.reason_tag or "human_edit"
-    item.notes = req.notes or "Edited and approved by reviewer"
+    previous_status = item.status
+    try:
+        new_status = hitl_service.assert_transition_allowed(previous_status, "edit")
+    except HITLTransitionError as e:
+        raise HTTPException(status_code=409, detail=e.message)
 
-    # Record feedback
+    original_text = item.content_raw
+    if item.original_content_raw is None:
+        item.original_content_raw = original_text
+
+    item.content_raw = req.edited_content
+    item.reason_tag = req.reason_tag or "human_edit"
+    item.notes = req.notes or "Edited during human review"
+
+    # Re-evaluate compliance against the edited text; a compliance status computed against
+    # the pre-edit text is no longer trustworthy once the wording has changed.
+    comp = await compliance_service.evaluate_content(
+        brand=item.brand,
+        content_text=req.edited_content,
+        content_type=item.content_type
+    )
+    item.compliance_status = "passed" if comp.passed else "flagged"
+    item.compliance_score = comp.score
+
+    item.status = new_status  # always back to 'human_review' — never auto-approved
+
+    # Record feedback (existing closed-loop behavior, unchanged)
     lessons_service.record_feedback_and_synthesize(
         content_id=item.id,
         reason_tag=item.reason_tag,
         notes=item.notes,
         original_content=original_text,
         corrected_content=req.edited_content
+    )
+
+    hitl_service.record_decision(
+        db,
+        asset_id=item.id,
+        decision="edit",
+        previous_status=previous_status,
+        new_status=new_status,
+        reviewer=req.reviewer,
+        reason_tag=item.reason_tag,
+        notes=item.notes,
+        original_content=original_text,
+        edited_content=req.edited_content,
+        compliance_score=comp.score,
     )
 
     db.commit()
@@ -179,10 +284,17 @@ async def rerun_compliance(item_id: int, db: Session = Depends(get_db)):
 async def regenerate_content(item_id: int, db: Session = Depends(get_db)):
     """
     Regenerate content item using updated active lessons learned from human feedback.
+    Legal from a HUMAN_REVIEW status or from 'rejected' (closed-loop re-draft after rejection).
     """
     item = db.get(ContentQueue, item_id)
     if not item:
         raise HTTPException(status_code=404, detail="Content item not found")
+
+    previous_status = item.status
+    try:
+        new_status = hitl_service.assert_transition_allowed(previous_status, "regenerate")
+    except HITLTransitionError as e:
+        raise HTTPException(status_code=409, detail=e.message)
 
     active_lessons = lessons_service.get_relevant_lessons_for_prompt(brand=item.brand, platform=item.platform)
     brief = ContentBrief(
@@ -195,11 +307,14 @@ async def regenerate_content(item_id: int, db: Session = Depends(get_db)):
         context_lessons=active_lessons
     )
 
+    original_text = item.content_raw
     variations = await content_service.generate_variations(brief)
     if variations:
         new_var = variations[0]
+        if item.original_content_raw is None:
+            item.original_content_raw = original_text
         item.content_raw = new_var.content_text
-        item.status = "human_review" # pending review again
+        item.status = new_status # pending review again
         # re-evaluate compliance
         comp = await compliance_service.evaluate_content(
             brand=item.brand,
@@ -209,6 +324,19 @@ async def regenerate_content(item_id: int, db: Session = Depends(get_db)):
         item.compliance_status = "passed" if comp.passed else "flagged"
         item.compliance_score = comp.score
         item.notes = f"Regenerated with {len(active_lessons)} active lessons learned. Compliance: {comp.overall_feedback}"
+
+        hitl_service.record_decision(
+            db,
+            asset_id=item.id,
+            decision="regenerate",
+            previous_status=previous_status,
+            new_status=new_status,
+            reviewer="ai_regeneration_agent",
+            notes=item.notes,
+            original_content=original_text,
+            edited_content=new_var.content_text,
+            compliance_score=comp.score,
+        )
 
     db.commit()
     db.refresh(item)
@@ -220,21 +348,46 @@ async def rewrite_queue_item(item_id: int, db: Session = Depends(get_db)):
     Automated Compliance Rewrite workflow:
     Rewrites non-compliant copy, re-checks compliance score, and places
     item into 'human_review' status for human verification.
+    Legal only from a HUMAN_REVIEW status — a rejected/approved/scheduled item must not
+    be silently rewritten out from under whatever decision was already made about it.
     """
     item = db.get(ContentQueue, item_id)
     if not item:
         raise HTTPException(status_code=404, detail="Content item not found")
 
+    previous_status = item.status
+    try:
+        new_status = hitl_service.assert_transition_allowed(previous_status, "rewrite")
+    except HITLTransitionError as e:
+        raise HTTPException(status_code=409, detail=e.message)
+
+    original_text = item.content_raw
+    if item.original_content_raw is None:
+        item.original_content_raw = original_text
+
     rewrite_res = await compliance_service.rewrite_non_compliant_content(
         brand=item.brand,
-        original_text=item.content_raw
+        original_text=original_text
     )
 
     item.content_raw = rewrite_res["corrected_text"]
     item.compliance_score = rewrite_res["new_score"]
     item.compliance_status = "passed" if rewrite_res["new_passed"] else "flagged"
-    item.status = "human_review" # MANDATORY: never auto-approved
+    item.status = new_status # MANDATORY: never auto-approved
     item.notes = f"Compliance rewrite completed. Score improved from {rewrite_res['previous_score']} to {rewrite_res['new_score']}. Awaiting human review."
+
+    hitl_service.record_decision(
+        db,
+        asset_id=item.id,
+        decision="rewrite",
+        previous_status=previous_status,
+        new_status=new_status,
+        reviewer="ai_compliance_rewrite",
+        notes=item.notes,
+        original_content=original_text,
+        edited_content=rewrite_res["corrected_text"],
+        compliance_score=rewrite_res["new_score"],
+    )
 
     db.commit()
     db.refresh(item)
@@ -242,7 +395,18 @@ async def rewrite_queue_item(item_id: int, db: Session = Depends(get_db)):
 
 @router.post("", response_model=ContentQueueResponse, status_code=201)
 def create_queue_item(item_in: ContentQueueCreate, db: Session = Depends(get_db)):
-    item = ContentQueue(**item_in.model_dump())
+    """
+    Direct row creation (used by tests/manual seeding; the real generation path is
+    pipeline_service, which never sets status to a privileged value). Server-side clamp:
+    a caller cannot fabricate an 'approved'/'scheduled'/'published' asset out of thin air —
+    any such request is forced back to 'pending' so it must still pass through human review.
+    """
+    payload = item_in.model_dump()
+    if payload.get("status") in _PRIVILEGED_STATUSES:
+        payload["status"] = "pending"
+    if payload.get("original_content_raw") is None:
+        payload["original_content_raw"] = payload.get("content_raw")
+    item = ContentQueue(**payload)
     db.add(item)
     db.commit()
     db.refresh(item)

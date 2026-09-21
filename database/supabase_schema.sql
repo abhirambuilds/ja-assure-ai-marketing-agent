@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS content_queue (
     reason_tag VARCHAR(100),
     notes TEXT,
     metadata_json TEXT,
+    original_content_raw TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT chk_content_brand CHECK (brand IN ('jade', 'doctorshield', 'jaguartransit')),
@@ -146,6 +147,36 @@ CREATE INDEX IF NOT EXISTS ix_publishing_records_id ON publishing_records(id);
 CREATE INDEX IF NOT EXISTS ix_publishing_records_content_id ON publishing_records(content_id);
 CREATE INDEX IF NOT EXISTS ix_publishing_records_platform ON publishing_records(platform);
 CREATE INDEX IF NOT EXISTS ix_publishing_records_status ON publishing_records(status);
+
+-- Idempotent migration for databases provisioned before original_content_raw existed.
+ALTER TABLE content_queue ADD COLUMN IF NOT EXISTS original_content_raw TEXT;
+
+-- 8. REVIEW DECISIONS (HITL Audit Trail — Human-in-the-Loop governance log)
+-- Deliberately polymorphic (asset_type + asset_id, no FK) so the same governance boundary
+-- can later cover Lead/Outreach drafts and Competitor Recommendations, not just content_queue.
+CREATE TABLE IF NOT EXISTS review_decisions (
+    id SERIAL PRIMARY KEY,
+    asset_type VARCHAR(50) NOT NULL DEFAULT 'content_queue',
+    asset_id INTEGER NOT NULL,
+    reviewer VARCHAR(100) NOT NULL DEFAULT 'compliance_officer',
+    decision VARCHAR(50) NOT NULL,
+    reason_tag VARCHAR(100),
+    notes TEXT,
+    original_content TEXT,
+    edited_content TEXT,
+    compliance_score DOUBLE PRECISION,
+    previous_status VARCHAR(50) NOT NULL,
+    new_status VARCHAR(50) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_review_decision CHECK (decision IN ('approve', 'reject', 'edit', 'rewrite', 'regenerate'))
+);
+
+CREATE INDEX IF NOT EXISTS ix_review_decisions_id ON review_decisions(id);
+CREATE INDEX IF NOT EXISTS ix_review_decisions_asset_type ON review_decisions(asset_type);
+CREATE INDEX IF NOT EXISTS ix_review_decisions_asset_id ON review_decisions(asset_id);
+CREATE INDEX IF NOT EXISTS ix_review_decisions_decision ON review_decisions(decision);
+CREATE INDEX IF NOT EXISTS ix_review_decisions_created_at ON review_decisions(created_at);
+CREATE INDEX IF NOT EXISTS ix_review_decisions_asset ON review_decisions(asset_type, asset_id);
 
 -- Automatic updated_at trigger helper
 CREATE OR REPLACE FUNCTION update_updated_at_column()
