@@ -110,6 +110,22 @@ export interface VideoScript {
   cta: string;
   disclaimer: string;
   media_status: string;
+
+  // Phase 1 render result fields (populated by the backend's video_generation_service)
+  job_id?: string;
+  video_url?: string;
+  video_duration_seconds?: number;
+  scenes_generated?: number;
+  image_source?: string; // ai_generated_openai | branded_fallback_demo | mixed (...)
+  render_status?: string; // completed | failed | skipped
+  render_error?: string;
+
+  // Phase 2 render result fields (voiceover + captions)
+  has_audio?: boolean;
+  has_captions?: boolean;
+  audio_source?: string; // e.g. openai_tts
+  audio_duration_seconds?: number;
+  caption_file?: string;
 }
 
 export interface GeneratedVariation {

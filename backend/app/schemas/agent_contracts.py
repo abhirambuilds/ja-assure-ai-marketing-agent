@@ -216,6 +216,23 @@ class VideoScript(BaseModel):
     disclaimer: Optional[str] = None
     media_status: str = "ai_storyboard_generated" # ai_storyboard_generated, pending_render
 
+    # Phase 1 render result fields (populated by video_generation_service, not by Groq)
+    job_id: Optional[str] = None
+    video_url: Optional[str] = None
+    video_duration_seconds: Optional[float] = None
+    scenes_generated: Optional[int] = None
+    image_source: Optional[str] = None # ai_generated_openai | branded_fallback_demo | mixed (...)
+    render_status: Optional[str] = None # completed | failed | skipped
+    render_error: Optional[str] = None
+
+    # Phase 2 render result fields (voiceover + captions; also populated by
+    # video_generation_service, not by Groq)
+    has_audio: Optional[bool] = None
+    has_captions: Optional[bool] = None
+    audio_source: Optional[str] = None # e.g. openai_tts
+    audio_duration_seconds: Optional[float] = None
+    caption_file: Optional[str] = None # URL to the generated .srt, served like video_url
+
 
 # ========================================================
 # 7. Publishing & Suite Contracts

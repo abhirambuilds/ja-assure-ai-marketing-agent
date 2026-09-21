@@ -1,7 +1,7 @@
 import os
 import json
 import logging
-from typing import Optional, Dict, Any, Type
+from typing import Optional, Dict, Any, Type, Union, get_origin, get_args
 from pydantic import BaseModel
 from app.config import settings
 
@@ -121,31 +121,66 @@ class LLMProvider:
     def _generate_fallback_mock(self, schema: Type[BaseModel], prompt: str) -> BaseModel:
         """
         Produce a safe dummy object matching the Pydantic schema for seamless offline testing.
-        """
-        fields = schema.model_fields
-        dummy_data: Dict[str, Any] = {}
-        for name, field in fields.items():
-            annotation = str(field.annotation).lower()
-            if "list" in annotation or "sequence" in annotation:
-                dummy_data[name] = ["Demo item 1"]
-            elif "dict" in annotation:
-                dummy_data[name] = {}
-            elif "bool" in annotation:
-                dummy_data[name] = True
-            elif "int" in annotation:
-                dummy_data[name] = 1
-            elif "float" in annotation:
-                dummy_data[name] = 95.0
-            elif "str" in annotation:
-                if name == "variation_label":
-                    dummy_data[name] = "B" if "variation: b" in prompt.lower() else "A"
-                elif name == "content_text":
-                    dummy_data[name] = "JA Assure tailored insurance advisory copy.\n\n*Terms, conditions, and underwriting limits apply.*"
-                else:
-                    dummy_data[name] = f"Demo generated {name} for query"
-            else:
-                dummy_data[name] = None
 
+        Type-introspects each field (get_origin/get_args) rather than string-matching the
+        annotation, specifically so a List[SomeNestedModel] field (e.g. VideoScript.scenes:
+        List[VideoScene]) gets a real, valid nested model instance -- not a bare string.
+        The old string-matching version always produced `["Demo item 1"]` for ANY list
+        field regardless of its item type, which fails schema validation for a list of
+        models and previously fell through to model_construct() (which skips validation
+        entirely), silently handing callers a list of strings where objects were expected.
+        """
+        dummy_data: Dict[str, Any] = {}
+        for name, field in schema.model_fields.items():
+            dummy_data[name] = self._mock_value_for_annotation(field.annotation, name, prompt)
+
+        try:
+            return schema.model_validate(dummy_data)
+        except Exception:
+            return schema.model_construct(**dummy_data)
+
+    def _mock_value_for_annotation(self, annotation: Any, name: str, prompt: str) -> Any:
+        origin = get_origin(annotation)
+        args = get_args(annotation)
+
+        # Unwrap Optional[X] (== Union[X, None]) to X for picking a dummy value.
+        if origin is Union:
+            non_none = [a for a in args if a is not type(None)]
+            if non_none:
+                return self._mock_value_for_annotation(non_none[0], name, prompt)
+            return None
+
+        if origin in (list, set, tuple) or annotation in (list, set, tuple):
+            item_type = args[0] if args else None
+            if isinstance(item_type, type) and issubclass(item_type, BaseModel):
+                return [self._build_mock_instance(item_type, prompt)]
+            return ["Demo item 1"]
+
+        if isinstance(annotation, type) and issubclass(annotation, BaseModel):
+            return self._build_mock_instance(annotation, prompt)
+
+        if origin is dict or annotation is dict:
+            return {}
+        if annotation is bool:
+            return True
+        if annotation is int:
+            return 1
+        if annotation is float:
+            return 95.0
+        if annotation is str:
+            if name == "variation_label":
+                return "B" if "variation: b" in prompt.lower() else "A"
+            if name == "content_text":
+                return "JA Assure tailored insurance advisory copy.\n\n*Terms, conditions, and underwriting limits apply.*"
+            return f"Demo generated {name} for query"
+        return None
+
+    def _build_mock_instance(self, schema: Type[BaseModel], prompt: str) -> BaseModel:
+        """Recursively builds one valid dummy instance of a nested Pydantic model."""
+        dummy_data = {
+            name: self._mock_value_for_annotation(field.annotation, name, prompt)
+            for name, field in schema.model_fields.items()
+        }
         try:
             return schema.model_validate(dummy_data)
         except Exception:

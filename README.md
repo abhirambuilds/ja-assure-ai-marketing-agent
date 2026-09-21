@@ -243,8 +243,9 @@ ja-assure-ai-marketing-agent/
 
 ### Prerequisites
 - **Python**: 3.11 or higher
-- **Node.js**: v18 or higher (v20+ recommended) & npm
+- **Node.js**: v20.19+ or v22.12+ (required by the Vite 8 / Rolldown toolchain)
 - **Supabase Account**: [https://supabase.com](https://supabase.com) (free cloud PostgreSQL)
+- **FFmpeg**: required for AI video/Reels generation (Content Studio's video mode). Install via `winget install Gyan.FFmpeg` (Windows), `brew install ffmpeg` (macOS), or `apt install ffmpeg` (Linux). Everything else works without it; only video rendering needs it. The backend auto-discovers `ffmpeg`/`ffprobe` from `PATH`, and on Windows also checks common install locations (e.g. the WinGet package store) as a fallback in case a still-running process's `PATH` predates the install — but a fresh terminal/IDE restart after installing is still the most reliable fix. If auto-discovery ever can't find them, set `FFMPEG_PATH`/`FFPROBE_PATH` in `backend/.env` to the exact executable paths.
 
 ### Quick Launch (3-Step)
 
@@ -300,6 +301,11 @@ DATABASE_URL=postgresql+psycopg://postgres:your_supabase_password_here@db.your_s
 # Groq API Configuration (Leave empty to use built-in intelligent fallback provider)
 GROQ_API_KEY=your_groq_api_key_here
 GROQ_MODEL=llama-3.3-70b-versatile
+
+# OpenAI Images API (Optional -- used for AI-generated video scene visuals in Content
+# Studio's video mode). Leave empty to use a clearly-labeled branded fallback card
+# instead of real AI-generated images. Get a key at https://platform.openai.com/api-keys
+OPENAI_API_KEY=
 
 # Server Configuration
 ENVIRONMENT=development

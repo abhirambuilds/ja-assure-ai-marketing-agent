@@ -9,6 +9,7 @@ import {
   Wand2
 } from 'lucide-react';
 import type { GeneratedVariation, VideoScript, LessonLearned, Competitor } from '../../types';
+import { API_ORIGIN } from '../../services/api';
 
 interface ContentStudioViewProps {
   studioBrand: 'jade' | 'doctorshield' | 'jaguartransit';
@@ -253,6 +254,56 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
                   </div>
                 )}
 
+                {/* Phase 1: Real assembled MP4 preview (image-motion visuals, no voiceover/captions yet) */}
+                {videoScript.render_status === 'completed' && videoScript.video_url && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between flex-wrap gap-1.5">
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 uppercase font-semibold">
+                        Real MP4 Generated
+                      </span>
+                      <span className="text-[10px] font-mono text-slate-400">
+                        {videoScript.video_duration_seconds}s • {videoScript.scenes_generated} scenes •{' '}
+                        {videoScript.image_source === 'branded_fallback_demo'
+                          ? 'Fallback Visuals (Demo Mode)'
+                          : videoScript.image_source?.startsWith('mixed')
+                          ? 'Mixed AI/Fallback Visuals'
+                          : 'AI-Generated Visuals'}
+                      </span>
+                    </div>
+                    <video
+                      controls
+                      className="w-full max-w-[280px] mx-auto rounded-xl border border-slate-800 bg-black"
+                      src={`${API_ORIGIN}${videoScript.video_url}`}
+                    />
+                    <div className="flex items-center justify-center gap-2 flex-wrap">
+                      <span className={`text-[10px] font-mono px-2 py-0.5 rounded border ${
+                        videoScript.has_audio
+                          ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
+                          : 'bg-slate-800 text-slate-400 border-slate-700'
+                      }`}>
+                        {videoScript.has_audio ? `✓ Voiceover (${videoScript.audio_source || 'audio'})` : '✕ No Voiceover'}
+                      </span>
+                      <span className={`text-[10px] font-mono px-2 py-0.5 rounded border ${
+                        videoScript.has_captions
+                          ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
+                          : 'bg-slate-800 text-slate-400 border-slate-700'
+                      }`}>
+                        {videoScript.has_captions ? '✓ Captions Burned In' : '✕ No Captions'}
+                      </span>
+                    </div>
+                    {videoScript.image_source === 'branded_fallback_demo' && (
+                      <p className="text-[10px] text-amber-300 bg-amber-950/20 border border-amber-800/30 rounded-lg p-2">
+                        No OPENAI_API_KEY configured — scenes use labeled branded fallback cards, not AI-generated images.
+                      </p>
+                    )}
+                  </div>
+                )}
+                {videoScript.render_status === 'failed' && (
+                  <div className="text-[11px] text-rose-300 bg-rose-950/20 border border-rose-800/30 rounded-lg p-3">
+                    Video rendering failed: {videoScript.render_error}
+                  </div>
+                )}
+
                 {/* Vertical Scene Timeline */}
                 <div className="space-y-3 relative">
                   <div className="absolute left-4 top-4 bottom-4 w-0.5 bg-slate-800" />
@@ -280,7 +331,9 @@ export const ContentStudioView: React.FC<ContentStudioViewProps> = ({
                 </div>
 
                 <div className="text-[10px] text-slate-500 font-mono bg-slate-950/60 p-2.5 rounded-lg border border-slate-800">
-                  ℹ️ Production cue sheet format. Visual and audio directions are structured for video editors. Actual video rendering is not executed.
+                  ℹ️ {videoScript.render_status === 'completed' || videoScript.render_status === 'failed'
+                    ? 'Phase 1: scenes are rendered into a real MP4 using still images animated with FFmpeg pan/zoom. Voiceover, captions, and compliance are not implemented yet.'
+                    : 'Production cue sheet format. Visual and audio directions are structured for video editors.'}
                 </div>
               </div>
             )}
