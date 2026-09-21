@@ -220,13 +220,15 @@ export const ReviewCenterView: React.FC<ReviewCenterViewProps> = ({
                       </button>
                     )}
 
-                    {/* Edit in place */}
-                    <button
-                      onClick={() => onOpenEdit(item)}
-                      className="px-3 py-1.5 rounded-xl text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 flex items-center gap-1.5 transition-colors cursor-pointer"
-                    >
-                      <FileText className="w-3.5 h-3.5" /> Edit Copy
-                    </button>
+                    {/* Edit in place — only legal on items still awaiting human review (server-enforced) */}
+                    {isPending && (
+                      <button
+                        onClick={() => onOpenEdit(item)}
+                        className="px-3 py-1.5 rounded-xl text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 flex items-center gap-1.5 transition-colors cursor-pointer"
+                      >
+                        <FileText className="w-3.5 h-3.5" /> Edit Copy
+                      </button>
+                    )}
 
                     {/* Regenerate with lessons (for pending or rejected items) */}
                     {(isPending || isRejected) && (

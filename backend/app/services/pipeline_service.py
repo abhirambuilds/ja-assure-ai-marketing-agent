@@ -120,6 +120,7 @@ class PipelineService:
                     content_type=content_type,
                     topic=topic,
                     content_raw=content_text,
+                    original_content_raw=content_text,  # immutable snapshot of the AI output as first generated
                     variation=var.variation_label,
                     language=lang_clean,
                     compliance_status=compliance_status,

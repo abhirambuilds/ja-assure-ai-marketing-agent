@@ -172,7 +172,7 @@ export function App() {
     setActionLoading(`edit-${editModalItem.id}`);
     try {
       await api.editContent(editModalItem.id, editContentText, 'human_edit', 'Verified and corrected during human review');
-      showToast('✓ Content updated, approved, and revision feedback recorded in memory!');
+      showToast('✓ Content updated and resubmitted for human review (compliance re-checked)!');
       setEditModalItem(null);
       fetchAllData();
     } catch (err: any) {

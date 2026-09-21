@@ -26,6 +26,9 @@ class ContentQueue(Base):
     reason_tag: Mapped[Optional[str]] = mapped_column(String(100), nullable=True) # compliance or rejection reason
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     metadata_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True) # video script, prompt metadata, etc.
+    # Immutable snapshot of the very first AI-generated text. Set once, never overwritten,
+    # so the original generation survives any number of human edits/rewrites/regenerations.
+    original_content_raw: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, onupdate=utc_now)
 
@@ -154,3 +157,31 @@ class PublishingRecord(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
 
     content_item: Mapped["ContentQueue"] = relationship("ContentQueue", back_populates="publishing_records")
+
+
+class ReviewDecision(Base):
+    """
+    Immutable audit log of every human-in-the-loop decision made on any governed asset.
+    Deliberately polymorphic (asset_type + asset_id, no FK) so the SAME HITL boundary can
+    eventually govern the Content Queue, Lead/Outreach drafts, and Competitor recommendations
+    without a schema change per workflow. For today's Content Queue usage, asset_id == content_queue.id.
+    """
+    __tablename__ = "review_decisions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
+    asset_type: Mapped[str] = mapped_column(String(50), index=True, default="content_queue") # content_queue, lead_outreach, competitor_recommendation
+    asset_id: Mapped[int] = mapped_column(Integer, index=True, nullable=False)
+    reviewer: Mapped[str] = mapped_column(String(100), default="compliance_officer")
+    decision: Mapped[str] = mapped_column(String(50), index=True, nullable=False) # approve, reject, edit, rewrite, regenerate
+    reason_tag: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    original_content: Mapped[Optional[str]] = mapped_column(Text, nullable=True) # version immediately before this decision
+    edited_content: Mapped[Optional[str]] = mapped_column(Text, nullable=True) # version immediately after this decision (edit/rewrite/regenerate only)
+    compliance_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    previous_status: Mapped[str] = mapped_column(String(50), nullable=False)
+    new_status: Mapped[str] = mapped_column(String(50), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, index=True)
+
+    __table_args__ = (
+        Index("ix_review_decisions_asset", "asset_type", "asset_id"),
+    )
