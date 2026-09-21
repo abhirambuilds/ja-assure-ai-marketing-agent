@@ -46,6 +46,15 @@ app.add_middleware(
 # Include API Router
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
+# Mount local media directory for persistent audio/video assets
+from pathlib import Path
+from fastapi.staticfiles import StaticFiles
+
+media_dir = Path(__file__).resolve().parent.parent / "media"
+media_dir.mkdir(parents=True, exist_ok=True)
+(media_dir / "voiceovers").mkdir(parents=True, exist_ok=True)
+app.mount("/media", StaticFiles(directory=str(media_dir)), name="media")
+
 @app.get("/", tags=["Root"])
 def root_endpoint():
     return {

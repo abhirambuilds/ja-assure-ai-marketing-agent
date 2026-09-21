@@ -7,12 +7,19 @@ from app.schemas.agent_contracts import (
     ContentBrief,
     GeneratedVariation,
     ContentSuiteRequest,
-    VideoScript
+    VideoScript,
+    VoiceGenerationResult,
 )
 from app.schemas.dtos import ContentQueueResponse
 from app.services.content_service import content_service
 from app.services.media_service import media_service
 from app.services.pipeline_service import pipeline_service
+from app.services.voice_service import (
+    voice_service,
+    VoiceEmptyError,
+    VoiceLanguageError,
+    VoiceSynthesisError
+)
 
 router = APIRouter(prefix="/content", tags=["Content Generation"])
 
@@ -85,3 +92,28 @@ async def generate_video_script(req: VideoRequest):
         return script
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Video script generation failed: {str(e)}")
+
+@router.post("/voice", response_model=VoiceGenerationResult)
+async def generate_voiceover(
+    script: VideoScript,
+    language_override: Optional[str] = None
+):
+    """
+    Synthesize high-fidelity MP3 speech audio from VideoScript scene voiceover text.
+    Uses dedicated VoiceService with clean multi-language mapping (en, ms, id, th, zh).
+    Saves persistent MP3 to /media/voiceovers/ and returns audio URL and duration.
+    """
+    try:
+        result = voice_service.synthesize_from_script(
+            script=script,
+            language_override=language_override
+        )
+        return result
+    except VoiceEmptyError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except VoiceLanguageError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except VoiceSynthesisError as e:
+        raise HTTPException(status_code=502, detail=f"Voice synthesis failed: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Voice generation failed: {str(e)}")

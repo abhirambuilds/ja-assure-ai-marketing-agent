@@ -248,7 +248,31 @@ class VideoScript(BaseModel):
     scenes: List[VideoScene] = Field(default_factory=list)
     cta: Optional[str] = None
     disclaimer: Optional[str] = None
-    media_status: str = "ai_storyboard_generated" # ai_storyboard_generated, pending_render
+    media_status: str = "ai_storyboard_generated" # ai_storyboard_generated, voice_generated, pending_render
+    audio_url: Optional[str] = None
+    audio_filename: Optional[str] = None
+    audio_duration_seconds: Optional[float] = None
+    voice_provider: Optional[str] = None
+    voice_language: Optional[str] = None
+    voice_status: Optional[str] = None
+
+class VoiceConfig(BaseModel):
+    language: str = "en"
+    slow: bool = False
+    tld: str = "com"
+    provider: str = "gtts"
+
+class VoiceGenerationResult(BaseModel):
+    status: str = "generated"
+    audio_url: str
+    audio_filename: str
+    language: str
+    provider: str = "gtts"
+    duration_seconds: Optional[float] = None
+    voiceover_text: str
+    scene_count: int
+    file_size_bytes: int
+    created_at: str
 
 
 # ========================================================

@@ -127,6 +127,25 @@ export interface VideoScript {
   cta: string;
   disclaimer: string;
   media_status: string;
+  audio_url?: string;
+  audio_filename?: string;
+  audio_duration_seconds?: number;
+  voice_provider?: string;
+  voice_language?: string;
+  voice_status?: string;
+}
+
+export interface VoiceGenerationResponse {
+  status: string;
+  audio_url: string;
+  audio_filename: string;
+  language: string;
+  provider: string;
+  duration_seconds?: number;
+  voiceover_text: string;
+  scene_count: number;
+  file_size_bytes: number;
+  created_at: string;
 }
 
 export interface GeneratedVariation {

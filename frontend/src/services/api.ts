@@ -10,10 +10,18 @@ import type {
   VideoScript,
   ComplianceResult,
   PublishingRecord,
-  ReviewDecisionItem
+  ReviewDecisionItem,
+  VoiceGenerationResponse
 } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+
+export const getMediaUrl = (path?: string): string => {
+  if (!path) return '';
+  if (path.startsWith('http://') || path.startsWith('https://')) return path;
+  const base = (import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1').replace(/\/api\/v1\/?$/, '');
+  return `${base}${path.startsWith('/') ? '' : '/'}${path}`;
+};
 
 async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
@@ -144,6 +152,20 @@ export const api = {
       body: JSON.stringify(payload),
     });
     return handleResponse<VideoScript>(res);
+  },
+
+  // Voice & TTS
+  generateVoiceover: async (script: VideoScript, languageOverride?: string): Promise<VoiceGenerationResponse> => {
+    let url = `${API_BASE_URL}/content/voice`;
+    if (languageOverride) {
+      url += `?language_override=${encodeURIComponent(languageOverride)}`;
+    }
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(script),
+    });
+    return handleResponse<VoiceGenerationResponse>(res);
   },
 
   // Compliance
