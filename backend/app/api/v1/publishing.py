@@ -47,6 +47,7 @@ def schedule_publishing(item_in: PublishingRecordCreate, db: Session = Depends(g
             status_code=400,
             detail=(
                 f"Cannot schedule content unless status='approved' AND compliance_status='passed'. "
+                f"Only human-approved content can reach publishing dispatch. "
                 f"Current: status='{content.status}', compliance_status='{content.compliance_status}' "
                 f"(score={content.compliance_score})."
             )

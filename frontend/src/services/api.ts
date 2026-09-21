@@ -9,7 +9,8 @@ import type {
   GeneratedVariation,
   VideoScript,
   ComplianceResult,
-  PublishingRecord
+  PublishingRecord,
+  ReviewDecisionItem
 } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
@@ -87,6 +88,11 @@ export const api = {
   regenerateContent: async (id: number): Promise<ContentQueueItem> => {
     const res = await fetch(`${API_BASE_URL}/queue/${id}/regenerate`, { method: 'POST' });
     return handleResponse<ContentQueueItem>(res);
+  },
+
+  getReviewHistory: async (id: number): Promise<ReviewDecisionItem[]> => {
+    const res = await fetch(`${API_BASE_URL}/queue/${id}/history`);
+    return handleResponse<ReviewDecisionItem[]>(res);
   },
 
   // Content Generation

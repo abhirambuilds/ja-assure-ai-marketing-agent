@@ -28,8 +28,25 @@ export interface ContentQueueItem {
   reason_tag?: string;
   notes?: string;
   metadata_json?: string;
+  original_content_raw?: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface ReviewDecisionItem {
+  id: number;
+  asset_type: string;
+  asset_id: number;
+  reviewer: string;
+  decision: 'approve' | 'reject' | 'edit' | 'rewrite' | 'regenerate' | string;
+  reason_tag?: string;
+  notes?: string;
+  original_content?: string;
+  edited_content?: string;
+  compliance_score?: number;
+  previous_status: string;
+  new_status: string;
+  created_at: string;
 }
 
 export interface Competitor {
@@ -121,21 +138,42 @@ export interface GeneratedVariation {
   media_prompt?: string;
 }
 
+export interface ClaimItem {
+  claim_text: string;
+  claim_type: string;
+  risk_level: string;
+  explanation?: string;
+}
+
 export interface ComplianceViolation {
   rule_id: string;
-  severity: string;
+  category?: string;
+  severity: string; // CRITICAL, HIGH, MEDIUM, LOW, warning, critical, info
   message: string;
+  reason?: string;
   flagged_phrase?: string;
+  matched_text?: string;
   suggested_fix?: string;
+  recommendation?: string;
 }
 
 export interface ComplianceResult {
   passed: boolean;
   score: number;
+  status?: string; // PASS, WARNING, BLOCKED, REQUIRES_HUMAN_REVIEW
   violations: ComplianceViolation[];
+  warnings?: ComplianceViolation[];
   suggestions: string[];
   overall_feedback: string;
   disclaimers_required: string[];
+  disclaimer_status?: string;
+  claims_analyzed?: ClaimItem[];
+  jurisdiction?: string;
+  brand?: string;
+  product?: string;
+  platform?: string;
+  language?: string;
+  human_review_required?: boolean;
 }
 
 export interface PublishingRecord {

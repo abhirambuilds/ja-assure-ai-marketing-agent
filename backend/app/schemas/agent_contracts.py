@@ -82,20 +82,54 @@ class GeneratedVariation(BaseModel):
 # 3. Compliance Gate Contracts
 # ========================================================
 
+class ClaimItem(BaseModel):
+    claim_text: str
+    claim_type: str = "general_marketing" # guaranteed_outcome, coverage, pricing, medical, comparative, numerical, etc.
+    risk_level: str = "low" # critical, high, medium, low
+    explanation: Optional[str] = None
+
 class ComplianceViolation(BaseModel):
     rule_id: str
-    severity: str # critical, warning, info
-    message: str
+    category: Optional[str] = None
+    severity: str = "medium" # critical, high, medium, low (also accepts warning, info)
+    message: str = ""
+    reason: Optional[str] = None
     flagged_phrase: Optional[str] = None
+    matched_text: Optional[str] = None
     suggested_fix: Optional[str] = None
+    recommendation: Optional[str] = None
+
+    def model_post_init(self, __context: Any) -> None:
+        if not self.reason and self.message:
+            self.reason = self.message
+        elif not self.message and self.reason:
+            self.message = self.reason
+        if not self.matched_text and self.flagged_phrase:
+            self.matched_text = self.flagged_phrase
+        elif not self.flagged_phrase and self.matched_text:
+            self.flagged_phrase = self.matched_text
+        if not self.recommendation and self.suggested_fix:
+            self.recommendation = self.suggested_fix
+        elif not self.suggested_fix and self.recommendation:
+            self.suggested_fix = self.recommendation
 
 class ComplianceResult(BaseModel):
     passed: bool
     score: float = Field(ge=0.0, le=100.0) # 0 to 100
+    status: str = "BLOCKED" # PASS, WARNING, BLOCKED, REQUIRES_HUMAN_REVIEW
     violations: List[ComplianceViolation] = Field(default_factory=list)
+    warnings: List[ComplianceViolation] = Field(default_factory=list)
     suggestions: List[str] = Field(default_factory=list)
     overall_feedback: str = ""
     disclaimers_required: List[str] = Field(default_factory=list)
+    disclaimer_status: Optional[str] = "compliant" # compliant, missing, incomplete
+    claims_analyzed: List[ClaimItem] = Field(default_factory=list)
+    jurisdiction: Optional[str] = "Singapore"
+    brand: Optional[str] = None
+    product: Optional[str] = None
+    platform: Optional[str] = None
+    language: Optional[str] = "en"
+    human_review_required: bool = True
 
 
 # ========================================================
