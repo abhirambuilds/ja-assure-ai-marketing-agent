@@ -63,6 +63,8 @@ def seed_test_intel_data(session: Session):
             detected_at=utc_now(),
         )
         session.add(change)
+    else:
+        change.detected_at = utc_now()
 
     # Lead with fit score >= 70
     lead = session.query(Lead).filter(Lead.company == "Orchard Gem Vault Pte Ltd").first()
