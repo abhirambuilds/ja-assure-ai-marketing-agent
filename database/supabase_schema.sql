@@ -158,25 +158,41 @@ CREATE INDEX IF NOT EXISTS ix_competitors_category
 CREATE TABLE IF NOT EXISTS leads (
     id SERIAL PRIMARY KEY,
 
-    name VARCHAR(100) NOT NULL,
+    name VARCHAR(100) NOT NULL DEFAULT 'Decision Maker',
     company VARCHAR(150) NOT NULL,
+    normalized_company_name VARCHAR(150),
+    domain VARCHAR(150),
+    website VARCHAR(255),
     industry VARCHAR(100) NOT NULL,
 
     email VARCHAR(150),
+    phone VARCHAR(50),
     location VARCHAR(100),
+    country VARCHAR(50),
+    city VARCHAR(100),
+    address TEXT,
     company_size VARCHAR(50),
+    description TEXT,
+    product_fit VARCHAR(100),
 
     fit_score DOUBLE PRECISION NOT NULL DEFAULT 0.0,
+    score_breakdown_json TEXT,
+    why_now TEXT,
+    signals_json TEXT,
+    contacts_json TEXT,
 
     qualification_reason TEXT,
     recommended_brand VARCHAR(50),
     outreach_draft TEXT,
 
     source VARCHAR(100) DEFAULT 'prospecting',
-
     status VARCHAR(50) NOT NULL DEFAULT 'new',
+    is_demo BOOLEAN NOT NULL DEFAULT FALSE,
+    campaign_id VARCHAR(50),
+    last_contacted_at TIMESTAMPTZ,
 
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT chk_lead_status
         CHECK (
@@ -196,11 +212,36 @@ CREATE INDEX IF NOT EXISTS ix_leads_id
 CREATE INDEX IF NOT EXISTS ix_leads_company
     ON leads(company);
 
+CREATE INDEX IF NOT EXISTS ix_leads_normalized_company
+    ON leads(normalized_company_name);
+
+CREATE INDEX IF NOT EXISTS ix_leads_domain
+    ON leads(domain);
+
 CREATE INDEX IF NOT EXISTS ix_leads_industry
     ON leads(industry);
 
 CREATE INDEX IF NOT EXISTS ix_leads_status
     ON leads(status);
+
+-- Safe additive migrations for existing instances
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS normalized_company_name VARCHAR(150);
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS domain VARCHAR(150);
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS website VARCHAR(255);
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS phone VARCHAR(50);
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS country VARCHAR(50);
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS city VARCHAR(100);
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS address TEXT;
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS description TEXT;
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS product_fit VARCHAR(100);
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS score_breakdown_json TEXT;
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS why_now TEXT;
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS signals_json TEXT;
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS contacts_json TEXT;
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS is_demo BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS campaign_id VARCHAR(50);
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS last_contacted_at TIMESTAMPTZ;
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP;
 
 
 -- ==============================================================================

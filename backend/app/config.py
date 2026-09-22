@@ -29,6 +29,12 @@ class Settings(BaseSettings):
     GROQ_API_KEY: str = ""
     GROQ_MODEL: str = "groq/compound"
 
+    # Optional Lead Discovery & Enrichment API Keys
+    GOOGLE_MAPS_API_KEY: str = ""
+    HUNTER_API_KEY: str = ""
+    SEARCH_API_KEY: str = ""
+    LEAD_AGENT_MODE: str = "demo"
+
     # Logging
     LOG_LEVEL: str = "INFO"
 

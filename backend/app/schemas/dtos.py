@@ -102,28 +102,51 @@ class CompetitorResponse(CompetitorBase):
 
 # ----------------- Lead DTOs -----------------
 class LeadBase(BaseModel):
-    name: str
+    name: str = "Decision Maker"
     company: str
+    normalized_company_name: Optional[str] = None
+    domain: Optional[str] = None
+    website: Optional[str] = None
     industry: str
     email: Optional[str] = None
+    phone: Optional[str] = None
     location: Optional[str] = None
+    country: Optional[str] = None
+    city: Optional[str] = None
+    address: Optional[str] = None
     company_size: Optional[str] = None
+    description: Optional[str] = None
+    product_fit: Optional[str] = None
     fit_score: float = 0.0
+    score_breakdown_json: Optional[str] = None
+    why_now: Optional[str] = None
+    signals_json: Optional[str] = None
+    contacts_json: Optional[str] = None
     qualification_reason: Optional[str] = None
     recommended_brand: Optional[str] = None
     outreach_draft: Optional[str] = None
     source: Optional[str] = "prospecting"
     source_type: Optional[str] = None
     status: str = "new"
+    is_demo: bool = False
+    campaign_id: Optional[str] = None
 
 class LeadCreate(LeadBase):
     pass
 
 class LeadResponse(LeadBase):
     id: int
+    last_contacted_at: Optional[datetime] = None
     created_at: datetime
+    updated_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+class LeadScoreResponse(BaseModel):
+    lead_id: int
+    score: float
+    score_breakdown: Dict[str, Any]
+    why_now: Optional[str] = None
 
 # ----------------- Feedback DTOs -----------------
 class FeedbackCreate(BaseModel):

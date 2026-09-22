@@ -205,6 +205,13 @@ class LeadProspect(BaseModel):
     why_relevant: Optional[str] = None
     discovery_rationale: Optional[str] = None
     source_url: Optional[str] = None
+    domain: Optional[str] = None
+    phone: Optional[str] = None
+    city: Optional[str] = None
+    country: Optional[str] = None
+    why_now: Optional[str] = None
+    score_breakdown_json: Optional[str] = None
+    is_demo: bool = False
     scoring_breakdown: Optional[LeadScoringBreakdown] = None
 
 class DiscoveredProspectItem(BaseModel):

@@ -68,18 +68,35 @@ export interface Lead {
   id: number;
   name: string;
   company: string;
+  normalized_company_name?: string;
+  domain?: string;
+  website?: string;
   industry: string;
   email?: string;
+  phone?: string;
   location?: string;
+  country?: string;
+  city?: string;
+  address?: string;
   company_size?: string;
+  description?: string;
+  product_fit?: string;
   fit_score: number;
+  score_breakdown_json?: string;
+  why_now?: string;
+  signals_json?: string;
+  contacts_json?: string;
   qualification_reason?: string;
   recommended_brand?: Brand;
   outreach_draft?: string;
   source?: string;
   source_type?: string;
   status: string;
+  is_demo?: boolean;
+  campaign_id?: string;
+  last_contacted_at?: string;
   created_at: string;
+  updated_at?: string;
 }
 
 export interface Feedback {

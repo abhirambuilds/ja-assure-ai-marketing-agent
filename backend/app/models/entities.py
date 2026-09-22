@@ -70,23 +70,58 @@ class Lead(Base):
     __tablename__ = "leads"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
-    name: Mapped[str] = mapped_column(String(100), nullable=False) # Contact / Key Person
+    name: Mapped[str] = mapped_column(String(100), nullable=False, default="Decision Maker") # Contact / Key Person
     company: Mapped[str] = mapped_column(String(150), index=True, nullable=False)
+    normalized_company_name: Mapped[Optional[str]] = mapped_column(String(150), nullable=True, index=True)
+    domain: Mapped[Optional[str]] = mapped_column(String(150), nullable=True, index=True)
+    website: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     industry: Mapped[str] = mapped_column(String(100), index=True, nullable=False)
     email: Mapped[Optional[str]] = mapped_column(String(150), nullable=True)
+    phone: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     location: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    country: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    city: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    address: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     company_size: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    product_fit: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     fit_score: Mapped[float] = mapped_column(Float, default=0.0) # 0 to 100
+    score_breakdown_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    why_now: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    signals_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    contacts_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     qualification_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     recommended_brand: Mapped[Optional[str]] = mapped_column(String(50), nullable=True) # jade, doctorshield, jaguartransit
     outreach_draft: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     source: Mapped[Optional[str]] = mapped_column(String(100), default="prospecting")
     status: Mapped[str] = mapped_column(String(50), default="new", index=True) # new, contacted, qualified, converted, archived
+    is_demo: Mapped[bool] = mapped_column(Boolean, default=False)
+    campaign_id: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, index=True)
+    last_contacted_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, onupdate=utc_now)
+
+    @property
+    def company_name(self) -> str:
+        return self.company
+
+    @company_name.setter
+    def company_name(self, value: str):
+        self.company = value
+
+    @property
+    def score(self) -> float:
+        return self.fit_score
+
+    @score.setter
+    def score(self, value: float):
+        self.fit_score = value
 
     @property
     def source_type(self) -> str:
-        if self.source in ["VERIFIED_SOURCE", "AI_GENERATED_PROSPECT", "DEMO_DATA"]:
+        if self.is_demo:
+            return "DEMO_DATA"
+        if self.source in ["VERIFIED_SOURCE", "AI_GENERATED_PROSPECT", "DEMO_DATA", "google_places", "gemini_market_intel"]:
             return self.source
         if "prospect" in (self.source or "").lower() or "agent" in (self.source or "").lower():
             return "AI_GENERATED_PROSPECT"

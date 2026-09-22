@@ -466,7 +466,13 @@ export const api = {
   },
 
   // Leads
-  getLeads: async (params?: { brand?: string; country?: string; industry?: string }): Promise<Lead[]> => {
+  getLeads: async (params?: { brand?: string; country?: string; industry?: string; status?: string }): Promise<Lead[]> => {
+    const query = new URLSearchParams();
+    if (params?.brand && params.brand !== 'all') query.append('brand', params.brand);
+    if (params?.country && params.country !== 'all') query.append('country', params.country);
+    if (params?.industry) query.append('industry', params.industry);
+    if (params?.status && params.status !== 'all') query.append('status', params.status);
+
     let filtered = [...inMemoryLeads];
     if (params?.brand && params.brand !== 'all') {
       filtered = filtered.filter(l => l.recommended_brand === params.brand);
@@ -474,10 +480,11 @@ export const api = {
     if (params?.country && params.country !== 'all') {
       filtered = filtered.filter(l => l.location?.includes(params.country!));
     }
-    return safeFetch<Lead[]>(`${API_BASE_URL}/leads`, undefined, filtered);
+    const url = query.toString() ? `${API_BASE_URL}/leads?${query.toString()}` : `${API_BASE_URL}/leads`;
+    return safeFetch<Lead[]>(url, undefined, filtered);
   },
 
-  discoverLeads: async (payload: { brand?: string; country?: string; industry?: string }): Promise<Lead[]> => {
+  discoverLeads: async (payload: { brand?: string; country?: string; industry?: string; keywords?: string }): Promise<Lead[]> => {
     return safeFetch<Lead[]>(
       `${API_BASE_URL}/leads/discover`,
       {
@@ -498,9 +505,23 @@ export const api = {
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ website_url: websiteUrl }),
+        body: JSON.stringify({ source_url: websiteUrl }),
       },
       lead
+    );
+  },
+
+  scoreLead: async (leadId: number): Promise<{ lead_id: number; score: number; score_breakdown: Record<string, any>; why_now?: string }> => {
+    const fallback = {
+      lead_id: leadId,
+      score: 82,
+      score_breakdown: { industry_fit: 25, company_relevance: 18, geographic_fit: 20, product_fit: 19, trigger_strength: 12 },
+      why_now: "Observed new retail showroom expansion in Singapore."
+    };
+    return safeFetch<{ lead_id: number; score: number; score_breakdown: Record<string, any>; why_now?: string }>(
+      `${API_BASE_URL}/leads/${leadId}/score`,
+      { method: 'POST' },
+      fallback
     );
   },
 

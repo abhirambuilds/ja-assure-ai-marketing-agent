@@ -1,177 +1,324 @@
+from __future__ import annotations
+
+import json
 import logging
-import re
-from typing import List, Optional, Dict, Any
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
+
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.database.session import SessionLocal
+from app.models.entities import Lead
 from app.schemas.agent_contracts import (
     LeadProspect,
     LeadScoringBreakdown,
-    DiscoveredProspectItem,
-    DiscoveredProspectList
 )
-from app.models.entities import Lead
-from app.database.session import SessionLocal
+from app.services.deduplication import DeduplicationService
+from app.services.discovery.base import (
+    CandidateCompany,
+    Contact,
+    DiscoveryRequest,
+    ScoreResult,
+    Signal,
+)
+from app.services.discovery.config import get_brand_config
+from app.services.discovery.google_places import GooglePlacesProvider
+from app.services.discovery.industry_sources import IndustrySourceProvider, get_demo_candidates
+from app.services.discovery.market_intel import MarketIntelDiscoveryProvider
+from app.services.enrichment.company_verifier import CompanyVerifier
+from app.services.enrichment.contacts import DemoContactProvider, HunterContactProvider
+from app.services.enrichment.normalization import (
+    normalize_company_name,
+    normalize_domain,
+    normalize_phone,
+)
+from app.services.enrichment.role_selector import DecisionMakerRoleSelector
+from app.services.enrichment.website_inspector import WebsiteInspector
 from app.services.llm_provider import llm_provider
+from app.services.scoring.lead_scorer import LeadScorer
+from app.services.signals.classifier import SignalClassifier
+from app.services.signals.detector import SignalDetector
 
 logger = logging.getLogger("ja_assure.leads")
 
-DEMO_PROSPECTS_POOL = [
-    {
-        "name": "Dr. Cheryl Goh (Medical Director)",
-        "company": "Marina Bay Aesthetics & Laser Centre",
-        "industry": "Medical / Dermatology & Cosmetic Surgery",
-        "email": None, # Never fabricate contact info
-        "location": "Singapore",
-        "company_size": "15-30 staff",
-        "target_brand": "doctorshield",
-        "likely_decision_maker_role": "Medical Director / Principal Practitioner",
-        "insurance_need": "Specialist medical professional indemnity with retroactive cover",
-        "risk_exposure": "High-volume cosmetic injectables, laser skin treatments, and telemedicine patient follow-ups",
-        "profile_notes": "High volume cosmetic injectable and laser procedures requiring specialist indemnity."
-    },
-    {
-        "name": "Dato' Raymond Tan (Managing Atelier)",
-        "company": "Royal Pavilions Fine Jewellery",
-        "industry": "Luxury Goods & Haute Horlogerie",
-        "email": None,
-        "location": "Kuala Lumpur, Malaysia",
-        "company_size": "20-50 staff",
-        "target_brand": "jade",
-        "likely_decision_maker_role": "Managing Director / Master Atelier Jeweller",
-        "insurance_need": "Agreed-value high-net-worth inventory protection with zero-deductible diamond rider",
-        "risk_exposure": "High-value gemstone inventory display, domestic and overseas VIP salon exhibitions",
-        "profile_notes": "Bespoke diamond atelier and certified Patek Philippe & Rolex collector showcases."
-    },
-    {
-        "name": "Kenji Takahashi (Director of Security)",
-        "company": "TransPacific Valuables Logistics",
-        "industry": "Secured Freight & Cargo Transport",
-        "email": None,
-        "location": "Singapore & Johor Bahru",
-        "company_size": "50-100 staff",
-        "target_brand": "jaguartransit",
-        "likely_decision_maker_role": "VP Operations / Head of Cargo Security",
-        "insurance_need": "Vault-grade all-risk transit cover with port delay extension riders",
-        "risk_exposure": "Cross-border bonded trucking across causeway bottlenecks, airport runway transfers",
-        "profile_notes": "Cross-border bonded trucking and air freight of microchips and luxury goods."
-    },
-    {
-        "name": "Dr. Arisara Wong (Head of Surgery)",
-        "company": "Bangkok Orthopaedic & Sports Medicine",
-        "industry": "Orthopaedic Surgery Clinic",
-        "email": None,
-        "location": "Bangkok, Thailand",
-        "company_size": "30-60 staff",
-        "target_brand": "doctorshield",
-        "likely_decision_maker_role": "Chief Surgeon & Managing Director",
-        "insurance_need": "Comprehensive surgical indemnity with dedicated medical defense legal panel",
-        "risk_exposure": "Invasive arthroscopic procedures and cross-border regional medical tourism patient liability",
-        "profile_notes": "High surgical exposure with active telemedicine follow-up consultations."
-    },
-    {
-        "name": "Elena Wijaya (Principal Gemologist)",
-        "company": "Nusantara Heritage Gemstones",
-        "industry": "Precious Stones & Heritage Jewellery",
-        "email": None,
-        "location": "Jakarta, Indonesia",
-        "company_size": "10-25 staff",
-        "target_brand": "jade",
-        "likely_decision_maker_role": "Founder & Principal Gemologist",
-        "insurance_need": "Collector-grade physical safe custody and transit exhibition insurance",
-        "risk_exposure": "High-value emerald and ruby collections frequently transported to international fairs",
-        "profile_notes": "Rare sapphire and emerald importer exhibiting at regional luxury fairs."
-    }
-]
 
 class LeadService:
-    """
-    Lead Discovery, Transparent 5-Factor Scoring, and Contextual Outreach Engine.
-    Features AI-assisted prospect discovery via Gemini, URL-based lead enrichment,
-    and strict attribution labels (VERIFIED_SOURCE vs. AI_GENERATED_PROSPECT vs. DEMO_DATA).
+    """Lead Discovery, Deterministic 5-Factor Scoring, and Contextual Outreach Engine.
+
+    Integrates:
+    - Multi-source discovery (Google Places API v1 searchText, Market Intel via Groq, Verified Industry Directories)
+    - Brand-specific query expansion (Jade, Jaguar Transit, DoctorShield)
+    - Normalization & 4-stage deduplication (domain, source id, phone, name)
+    - SSRF-safe website inspection
+    - Role & contact selection (Hunter.io + demo fallback)
+    - Evidence-backed signal detection & 'Why Now' explanation
+    - Deterministic 5-factor scoring (0-100) with explainable breakdowns
+    - Persistence to PostgreSQL / Supabase
     """
 
+    def __init__(self):
+        self.deduplicator = DeduplicationService()
+        self.inspector = WebsiteInspector()
+        self.hunter = HunterContactProvider()
+        self.demo_contacts = DemoContactProvider()
+
+    # -------------------------------------------------------------------------
+    # 1. Multi-source Discovery
+    # -------------------------------------------------------------------------
+    def discover(self, request: DiscoveryRequest) -> List[CandidateCompany]:
+        """Query all discovery providers and aggregate raw candidate companies."""
+        candidates: List[CandidateCompany] = []
+
+        # 1. Google Places (live when API key is provided)
+        try:
+            places_provider = GooglePlacesProvider()
+            places_results = places_provider.discover(request)
+            if places_results:
+                logger.info(f"Google Places discovered {len(places_results)} leads for {request.brand}")
+                candidates.extend(places_results)
+        except Exception as e:
+            logger.warning(f"Google Places discovery error: {e}")
+
+        # 2. Market Intelligence (via LLM when live)
+        try:
+            market_provider = MarketIntelDiscoveryProvider()
+            market_results = market_provider.discover(request)
+            if market_results:
+                logger.info(f"Market Intel discovered {len(market_results)} leads for {request.brand}")
+                candidates.extend(market_results)
+        except Exception as e:
+            logger.warning(f"Market Intel discovery error: {e}")
+
+        # 3. Verified Industry Directories & Demo Pool fallback
+        if not candidates or len(candidates) < 3:
+            try:
+                industry_provider = IndustrySourceProvider()
+                industry_results = industry_provider.discover(request)
+                candidates.extend(industry_results)
+            except Exception as e:
+                logger.warning(f"Industry source discovery error: {e}")
+
+        return candidates
+
+    # -------------------------------------------------------------------------
+    # 2. Normalization
+    # -------------------------------------------------------------------------
+    def normalize(self, candidates: List[CandidateCompany]) -> List[CandidateCompany]:
+        """Normalize company names, domains, and phone numbers across candidates."""
+        for c in candidates:
+            c.domain = normalize_domain(c.domain)
+            c.phone = normalize_phone(c.phone)
+        return candidates
+
+    # -------------------------------------------------------------------------
+    # 3. Deduplication (4-Stage Hierarchy)
+    # -------------------------------------------------------------------------
+    def deduplicate(self, candidates: List[CandidateCompany]) -> List[CandidateCompany]:
+        """Apply 4-stage deduplication: domain -> provider ID -> phone -> normalized company name."""
+        return self.deduplicator.deduplicate(candidates)
+
+    # -------------------------------------------------------------------------
+    # 4. Website Inspection (SSRF-Safe)
+    # -------------------------------------------------------------------------
+    def inspect_website(self, domain: Optional[str]) -> Optional[str]:
+        """Inspect company website with SSRF protection, timeout, and byte limit."""
+        return self.inspector.inspect(domain)
+
+    # -------------------------------------------------------------------------
+    # 5. Contact & Role Discovery
+    # -------------------------------------------------------------------------
+    def enrich_contacts(self, candidate: CandidateCompany, brand: str) -> List[Contact]:
+        """Find decision-maker roles and contacts via Hunter.io or demo fallback."""
+        brand_cfg = get_brand_config(brand)
+        role_selector = DecisionMakerRoleSelector(brand_cfg)
+        target_roles = role_selector.roles_for(candidate)
+
+        # Try Hunter.io if live
+        contacts = self.hunter.find_contacts(candidate, target_roles)
+        if not contacts and candidate.is_demo:
+            contacts = self.demo_contacts.find_contacts(candidate, target_roles)
+
+        return contacts
+
+    # -------------------------------------------------------------------------
+    # 6. Signal Detection & Why Now
+    # -------------------------------------------------------------------------
+    def detect_signals(self, candidate: CandidateCompany, brand: str) -> List[Signal]:
+        """Extract evidence-backed expansion, milestone, and growth signals."""
+        brand_cfg = get_brand_config(brand)
+        classifier = SignalClassifier(brand_cfg)
+        detector = SignalDetector(classifier)
+        return detector.detect(candidate)
+
+    def explain_why_now(self, company_name: str, signals: List[Signal], brand: str) -> Optional[str]:
+        """Synthesize a cautious, compliant 'Why Now' underwriting opportunity statement."""
+        brand_cfg = get_brand_config(brand)
+        classifier = SignalClassifier(brand_cfg)
+        detector = SignalDetector(classifier)
+        return detector.why_now(company_name, signals, brand)
+
+    # -------------------------------------------------------------------------
+    # 7. Deterministic 5-Factor Scoring
+    # -------------------------------------------------------------------------
+    def score(
+        self,
+        candidate: CandidateCompany,
+        brand: str,
+        signals: Optional[List[Signal]] = None,
+        contacts: Optional[List[Contact]] = None,
+    ) -> ScoreResult:
+        """Calculate deterministic 0-100 score across 5 explainable factors."""
+        brand_cfg = get_brand_config(brand)
+        scorer = LeadScorer(brand_cfg)
+        return scorer.score(
+            industry=candidate.industry,
+            country=candidate.country,
+            market=candidate.country or "Singapore",
+            product_fit=brand_cfg.product,
+            signals=signals or [],
+            contacts=contacts or [],
+            has_description=bool(candidate.description),
+        )
+
+    # -------------------------------------------------------------------------
+    # 8. Persistence to Database
+    # -------------------------------------------------------------------------
+    def persist(
+        self,
+        db: Session,
+        candidate: CandidateCompany,
+        brand: str,
+        score_res: ScoreResult,
+        why_now: Optional[str],
+        signals: List[Signal],
+        contacts: List[Contact],
+        outreach: Optional[str],
+    ) -> Lead:
+        """Upsert lead into database with full discovery provenance, score breakdown, and triggers."""
+        norm_name = normalize_company_name(candidate.company_name)
+        norm_dom = normalize_domain(candidate.domain)
+
+        # Check existing by domain, then normalized company name
+        existing: Optional[Lead] = None
+        if norm_dom:
+            existing = db.execute(select(Lead).where(Lead.domain == norm_dom)).scalars().first()
+        if not existing and norm_name:
+            existing = db.execute(select(Lead).where(Lead.normalized_company_name == norm_name)).scalars().first()
+        if not existing:
+            existing = db.execute(select(Lead).where(Lead.company == candidate.company_name)).scalars().first()
+
+        score_val = float(score_res.total)
+        status_val = "qualified" if score_val >= 75 else "new"
+        qualification_msg = why_now or candidate.description or f"Qualified via {candidate.source_provider}"
+
+        # Contact name
+        contact_name = "Decision Maker"
+        email_val = None
+        if contacts:
+            c = contacts[0]
+            if c.name:
+                contact_name = f"{c.name} ({c.role})" if c.role else c.name
+            elif c.role:
+                contact_name = c.role.title()
+            email_val = c.email
+
+        breakdown_json = json.dumps(score_res.breakdown)
+        signals_json = json.dumps([s.model_dump(mode="json") for s in signals]) if signals else None
+        contacts_json = json.dumps([c.model_dump(mode="json") for c in contacts]) if contacts else None
+
+        if existing:
+            existing.fit_score = score_val
+            existing.score_breakdown_json = breakdown_json
+            existing.why_now = why_now
+            existing.signals_json = signals_json
+            existing.contacts_json = contacts_json
+            existing.qualification_reason = qualification_msg
+            existing.outreach_draft = outreach or existing.outreach_draft
+            existing.source = candidate.source_provider
+            existing.is_demo = candidate.is_demo
+            if candidate.description:
+                existing.description = candidate.description
+            if candidate.address and not existing.address:
+                existing.address = candidate.address
+            if candidate.phone and not existing.phone:
+                existing.phone = candidate.phone
+            if candidate.domain and not existing.domain:
+                existing.domain = candidate.domain
+                existing.website = f"https://{candidate.domain}"
+            if email_val and not existing.email:
+                existing.email = email_val
+            db.commit()
+            db.refresh(existing)
+            return existing
+        else:
+            new_lead = Lead(
+                name=contact_name,
+                company=candidate.company_name,
+                normalized_company_name=norm_name,
+                domain=norm_dom,
+                website=f"https://{norm_dom}" if norm_dom else None,
+                industry=candidate.industry or "commercial",
+                email=email_val,
+                phone=candidate.phone,
+                location=candidate.city or candidate.country or "Singapore",
+                country=candidate.country or "Singapore",
+                city=candidate.city or "Singapore",
+                address=candidate.address,
+                description=candidate.description,
+                product_fit=brand,
+                fit_score=score_val,
+                score_breakdown_json=breakdown_json,
+                why_now=why_now,
+                signals_json=signals_json,
+                contacts_json=contacts_json,
+                qualification_reason=qualification_msg,
+                recommended_brand=brand,
+                outreach_draft=outreach,
+                source=candidate.source_provider,
+                status=status_val,
+                is_demo=candidate.is_demo,
+            )
+            db.add(new_lead)
+            db.commit()
+            db.refresh(new_lead)
+            return new_lead
+
+    # -------------------------------------------------------------------------
+    # Backward Compatible Scoring & Outreach Helpers
+    # -------------------------------------------------------------------------
     def calculate_score(
         self,
         industry: str,
         company: str,
         location: str,
         company_size: Optional[str] = None,
-        brand: Optional[str] = None
+        brand: Optional[str] = None,
     ) -> LeadScoringBreakdown:
-        """
-        Transparent 5-factor scoring model totaling 0-100 with detailed dimensional rationales.
-        """
-        industry_lower = industry.lower()
-        loc_lower = location.lower()
+        """Transparent 5-factor scoring model totaling 0-100 with dimensional rationales."""
         brand_clean = (brand or "doctorshield").lower()
-        
-        # 1. Industry fit (max 25)
-        if any(w in industry_lower for w in ["cosmetic", "plastic", "surgeon", "orthopaedic", "medical", "clinic"]):
-            industry_fit = 24.0
-            industry_reason = "High clinical/surgical liability aligns precisely with JA Assure DoctorShield malpractice coverage."
-        elif any(w in industry_lower for w in ["jewellery", "jewelry", "gemstone", "horlogerie", "diamonds", "watches"]):
-            industry_fit = 23.5
-            industry_reason = "High physical asset concentration and appraisal volatility match Jade bespoke agreed-value coverage."
-        elif any(w in industry_lower for w in ["freight", "logistics", "cargo", "courier", "transport"]):
-            industry_fit = 23.0
-            industry_reason = "Substantial transit delay and cargo loss exposure matches Jaguar Transit door-to-door protection."
-        else:
-            industry_fit = 14.0
-            industry_reason = "General commercial sector with standard enterprise liability needs."
-
-        # 2. Company profile (max 20)
-        if company_size and any(s in company_size for s in ["15", "20", "30", "50", "100"]):
-            company_profile = 18.0
-            profile_reason = "Mid-tier specialized firm with sufficient transaction volume to support specialized underwriting."
-        else:
-            company_profile = 15.0
-            profile_reason = "Standard enterprise profile; qualified candidate for niche policy placement."
-
-        # 3. Geographic relevance (max 20) - Focus: SG, MY, TH, ID
-        if any(c in loc_lower for c in ["singapore", "sg"]):
-            geo_fit = 20.0
-            geo_reason = "Tier-1 primary jurisdiction with mature legal and regulatory framework (MAS / SMC)."
-        elif any(c in loc_lower for c in ["malaysia", "kuala lumpur", "johor", "penang"]):
-            geo_fit = 19.0
-            geo_reason = "Key regional growth market covered under Bank Negara Malaysia insurance licensing."
-        elif any(c in loc_lower for c in ["thailand", "bangkok"]):
-            geo_fit = 18.0
-            geo_reason = "Active medical tourism and luxury export hub with OIC regulatory oversight."
-        elif any(c in loc_lower for c in ["indonesia", "jakarta"]):
-            geo_fit = 17.5
-            geo_reason = "High-growth ASEAN economy with expanding high-net-worth collector and logistics base."
-        else:
-            geo_fit = 10.0
-            geo_reason = "Secondary market outside core Southeast Asian underwriting corridors."
-
-        # 4. Product relevance (max 20)
-        if brand_clean in ["jade", "doctorshield", "jaguartransit"]:
-            product_relevance = 19.0
-            prod_reason = f"Direct policy alignment with dedicated {brand_clean.title()} underwriting syndicate."
-        else:
-            product_relevance = 16.0
-            prod_reason = "Applicable across multiple JA Assure multi-line commercial insurance facilities."
-
-        # 5. Potential insurance need (max 15)
-        if any(w in industry_lower for w in ["surgery", "aesthetic", "precious", "gemstone", "valuables", "transit"]):
-            potential_need = 14.0
-            need_reason = "Acute exposure to catastrophic sub-limit caps, malpractice litigation, or cargo port theft."
-        else:
-            potential_need = 11.0
-            need_reason = "Standard baseline liability coverage requirements."
-
-        total = industry_fit + company_profile + geo_fit + product_relevance + potential_need
-
+        brand_cfg = get_brand_config(brand_clean)
+        scorer = LeadScorer(brand_cfg)
+        res = scorer.score(
+            industry=industry,
+            country=location,
+            market=location or "Singapore",
+            product_fit=brand_cfg.product,
+            has_description=bool(company),
+        )
+        bd = res.breakdown
         return LeadScoringBreakdown(
-            industry_fit=round(industry_fit, 1),
-            company_profile=round(company_profile, 1),
-            geographic_relevance=round(geo_fit, 1),
-            product_relevance=round(product_relevance, 1),
-            potential_insurance_need=round(potential_need, 1),
-            total_fit_score=round(total, 1),
-            industry_fit_reason=industry_reason,
-            company_profile_reason=profile_reason,
-            geographic_relevance_reason=geo_reason,
-            product_relevance_reason=prod_reason,
-            potential_insurance_need_reason=need_reason
+            industry_fit=float(bd.get("industry_fit", 20)),
+            company_profile=float(bd.get("company_relevance", 15)),
+            geographic_relevance=float(bd.get("geographic_fit", 15)),
+            product_relevance=float(bd.get("product_fit", 15)),
+            potential_insurance_need=float(bd.get("trigger_strength", 10)),
+            total_fit_score=float(res.total),
+            industry_fit_reason=f"Alignment with {brand_clean.title()} underwriting criteria.",
+            company_profile_reason="Commercial enterprise profile qualified for niche coverage.",
+            geographic_relevance_reason=f"Operating within {location or 'core ASEAN underwriting markets'}.",
+            product_relevance_reason=f"Policy structure matched to {brand_clean.title()} facility.",
+            potential_insurance_need_reason="Risk exposure derived from verified operational profile.",
         )
 
     def generate_outreach(
@@ -182,29 +329,34 @@ class LeadService:
         industry: str,
         location: Optional[str] = None,
         research_context: Optional[str] = None,
-        risk_exposure: Optional[str] = None
+        risk_exposure: Optional[str] = None,
     ) -> str:
-        """
-        Generate tailored B2B outreach messaging adhering to brand voice,
-        incorporating location, specific risk exposure, and market research context.
-        Avoids spammy claims and guarantees.
-        """
+        """Generate tailored B2B outreach messaging adhering to brand voice."""
         loc_str = f" in {location}" if location else ""
-        context_str = f" In light of regional market shifts ({research_context}), " if research_context else " "
+        context_str = f" In light of recent milestones ({research_context}), " if research_context else " "
         risk_str = f" Regarding {risk_exposure}, " if risk_exposure else ""
 
-        brand_clean = brand.lower()
+        brand_clean = (brand or "doctorshield").lower()
 
-        if brand_clean == "jade":
+        if "jade" in brand_clean:
             return (
                 f"Dear {prospect_name},\n\n"
                 f"We have been following {company}'s distinguished presence in {industry}{loc_str}.{context_str}"
-                f"{risk_str}as bespoke high-value collections frequently exceed conventional homeowner policy sub-limits "
-                f"(often capped at $2,500 to $5,000), Jade by JA Assure provides agreed-value protection with zero-deductible coverage and seamless worldwide exhibition transit.\n\n"
+                f"{risk_str}as bespoke high-value collections frequently exceed conventional policy sub-limits, "
+                f"Jade by JA Assure provides agreed-value protection with zero-deductible coverage and seamless exhibition transit.\n\n"
                 f"Would you be open to a brief 5-minute private consultation on safeguarding your clients' rare collector inventory?\n\n"
                 f"Warm regards,\nJA Assure Jade Advisory"
             )
-        elif brand_clean == "doctorshield":
+        elif "transit" in brand_clean or "jaguar" in brand_clean:
+            return (
+                f"Dear {prospect_name},\n\n"
+                f"In high-value freight forwarding across regional trade corridors{loc_str},{context_str}"
+                f"{risk_str}unexpected transit bottlenecks and unmonitored transfer handoffs introduce balance-sheet exposure. "
+                f"Jaguar Transit offers vault-grade door-to-door cargo insurance with active GPS escort protection.\n\n"
+                f"We would welcome the opportunity to review {company}'s primary transit routes to optimize cargo deductibles.\n\n"
+                f"Best regards,\nJaguar Transit Operations"
+            )
+        else: # doctorshield
             return (
                 f"Dear {prospect_name},\n\n"
                 f"Given {company}'s active procedural focus in {industry}{loc_str},{context_str}"
@@ -213,213 +365,151 @@ class LeadService:
                 f"We would welcome the opportunity to share our concise indemnity overview.\n\n"
                 f"Respectfully,\nDoctorShield Medico-Legal Partnerships"
             )
-        else: # jaguartransit
-            return (
-                f"Dear {prospect_name},\n\n"
-                f"In high-value freight forwarding across regional logistics hubs{loc_str},{context_str}"
-                f"{risk_str}unexpected port congestion delays and unmonitored transit handoffs introduce unacceptable balance-sheet exposure. "
-                f"Jaguar Transit offers vault-grade door-to-door cargo insurance with active GPS escort protection.\n\n"
-                f"We would be glad to review {company}'s primary transit routes to optimize cargo deductibles and claim turnaround.\n\n"
-                f"Best regards,\nJaguar Transit Operations"
-            )
 
+    # -------------------------------------------------------------------------
+    # 9. Main Orchestrated Discovery Pipeline
+    # -------------------------------------------------------------------------
     async def discover_and_score_leads(
         self,
         brand: Optional[str] = None,
         country: Optional[str] = None,
         industry: Optional[str] = None,
         target_audience: Optional[str] = None,
-        keywords: Optional[str] = None
+        keywords: Optional[str] = None,
     ) -> List[LeadProspect]:
+        """Main orchestrated discovery pipeline integrating multi-source discovery,
+
+        verification, 4-stage deduplication, website inspection, signal detection,
+        deterministic 5-factor scoring, Why Now explanation, and persistence.
         """
-        Discover potential B2B insurance prospects.
-        When Gemini is live, uses structured AI prospect discovery across target countries/industries.
-        Falls back to curated DEMO_PROSPECTS_POOL offline.
-        Scores all prospects transparently, drafts contextual outreach, and stores them in SQLite.
-        """
+        brand_clean = (brand or "doctorshield").lower()
+        market = country or "Singapore"
         db = SessionLocal()
         results: List[LeadProspect] = []
-        brand_clean = (brand or "doctorshield").lower()
 
         try:
-            from app.services.research_service import research_service
-            raw_candidates: List[Dict[str, Any]] = []
+            req = DiscoveryRequest(
+                brand=brand_clean,
+                market=market,
+                target_industry=industry,
+                target_count=15,
+                keywords=keywords,
+            )
 
-            # 1. LIVE GEMINI PROSPECT DISCOVERY
-            if llm_provider.is_live:
-                try:
-                    geo = country or "Singapore, Malaysia, Thailand, or Indonesia"
-                    ind_query = industry or ("Luxury bespoke jewellery" if brand_clean == "jade" else ("Private medical & aesthetic clinics" if brand_clean == "doctorshield" else "High-value secured cargo transport"))
-                    prompt = (
-                        f"Discover 3 to 5 realistic high-potential B2B commercial insurance prospect profiles for JA Assure ({brand_clean.title()} division).\n\n"
-                        f"Target Jurisdiction: {geo}\n"
-                        f"Target Industry: {ind_query}\n"
-                        f"Target Audience Persona: {target_audience or 'Managing Director / Chief Executive'}\n"
-                        f"Optional Keywords: {keywords or 'None'}\n\n"
-                        f"CRITICAL SAFETY & DATA INTEGRITY RULES:\n"
-                        f"1. Mark source_type as 'AI_GENERATED_PROSPECT'.\n"
-                        f"2. DO NOT FABRICATE: phone numbers, emails, LinkedIn URLs, websites, exact revenues, or staff numbers. Leave contact fields blank.\n"
-                        f"3. Generate realistic company names, typical decision-maker roles (e.g. 'Principal Medical Director', 'Atelier Managing Jeweller', 'Cargo Logistics VP'), "
-                        f"specific insurance needs, and acute risk exposures for this business in {geo}.\n"
-                        f"4. Provide a clear discovery rationale explaining why this business profile needs JA Assure {brand_clean.title()} coverage."
-                    )
-                    system_instruction = (
-                        "You are the Commercial Lead Discovery Intelligence Agent for JA Assure. "
-                        "Identify high-fit corporate profiles with accuracy. Never invent fake personal contact details."
-                    )
+            # 1. Multi-source Discovery
+            raw_candidates = self.discover(req)
 
-                    discovered: DiscoveredProspectList = llm_provider.generate_structured(
-                        prompt=prompt,
-                        schema=DiscoveredProspectList,
-                        system_instruction=system_instruction
-                    )
+            # 2. Company Verification
+            brand_cfg = get_brand_config(brand_clean)
+            verifier = CompanyVerifier(brand_cfg)
+            verified = [c for c in raw_candidates if verifier.is_relevant(c, market)]
+            if not verified:
+                verified = raw_candidates  # Graceful fallback if overly strict
 
-                    if discovered and discovered.prospects:
-                        for p in discovered.prospects:
-                            raw_candidates.append({
-                                "name": f"{p.likely_decision_maker_role} ({p.company_name})",
-                                "company": p.company_name,
-                                "industry": p.industry,
-                                "email": None, # Never fabricate contact info
-                                "location": p.country_city,
-                                "company_size": p.company_profile,
-                                "target_brand": brand_clean,
-                                "likely_decision_maker_role": p.likely_decision_maker_role,
-                                "insurance_need": p.insurance_need,
-                                "risk_exposure": p.risk_exposure,
-                                "why_relevant": p.why_relevant,
-                                "discovery_rationale": p.discovery_rationale,
-                                "source_type": "AI_GENERATED_PROSPECT"
-                            })
-                        logger.info(f"Gemini discovered {len(raw_candidates)} prospect profiles for {brand_clean}")
-                except Exception as e:
-                    logger.warning(f"Live Gemini lead discovery failed: {e}. Falling back to demo prospect pool.")
+            # 3. Normalization & 4-Stage Deduplication
+            normalized = self.normalize(verified)
+            unique_candidates = self.deduplicate(normalized)
 
-            # 2. FALLBACK / DEMO POOL CANDIDATES
-            if not raw_candidates:
-                pool = DEMO_PROSPECTS_POOL
-                if brand:
-                    pool = [p for p in pool if p["target_brand"] == brand_clean]
-                if country:
-                    pool = [p for p in pool if country.lower() in p["location"].lower()]
-                if industry:
-                    pool = [p for p in pool if industry.lower() in p["industry"].lower()]
+            # 4. Enrich each candidate (website inspection, contacts, signals, deterministic score, why-now)
+            for cand in unique_candidates[:15]:
+                # Website inspection (SSRF safe) - skip for synthetic demo domains
+                if not cand.is_demo and cand.domain and not cand.description:
+                    site_text = self.inspect_website(cand.domain)
+                    if site_text:
+                        cand.description = site_text[:200]
 
-                if not pool:
-                    pool = DEMO_PROSPECTS_POOL[:3]
+                # Contacts discovery
+                contacts = self.enrich_contacts(cand, brand_clean)
 
-                for item in pool:
-                    raw_candidates.append({
-                        "name": item["name"],
-                        "company": item["company"],
-                        "industry": item["industry"],
-                        "email": item.get("email"),
-                        "location": item["location"],
-                        "company_size": item.get("company_size"),
-                        "target_brand": item["target_brand"],
-                        "likely_decision_maker_role": item.get("likely_decision_maker_role", "Executive Director"),
-                        "insurance_need": item.get("insurance_need", "Bespoke commercial underwriting"),
-                        "risk_exposure": item.get("risk_exposure", item.get("profile_notes", "Standard operational exposure")),
-                        "why_relevant": item.get("profile_notes", "Identified in regional industry registry"),
-                        "discovery_rationale": f"Demonstrates high alignment with {item['target_brand']} coverage criteria.",
-                        "source_type": "DEMO_DATA"
-                    })
+                # Signal detection & Why Now
+                signals = self.detect_signals(cand, brand_clean)
+                why_now = self.explain_why_now(cand.company_name, signals, brand_clean)
 
-            # 3. SCORE & ENRICH EACH PROSPECT
-            for item in raw_candidates:
-                target_brand = item["target_brand"]
-                scoring = self.calculate_score(
-                    industry=item["industry"],
-                    company=item["company"],
-                    location=item["location"],
-                    company_size=item.get("company_size"),
-                    brand=target_brand
-                )
+                # Deterministic 5-factor score
+                score_res = self.score(cand, brand_clean, signals=signals, contacts=contacts)
 
-                # Fetch market/competitor research context
-                research_cues = research_service.get_relevant_research_context(target_brand, item["industry"])
-                top_cue = research_cues[0].split("|")[0] if research_cues else None
-
-                # Generate tailored outreach
+                # Contextual outreach
+                contact_display = contacts[0].name or cand.company_name if contacts else cand.company_name
                 outreach = self.generate_outreach(
-                    prospect_name=item["name"].split("(")[0].strip(),
-                    company=item["company"],
-                    brand=target_brand,
-                    industry=item["industry"],
-                    location=item.get("location"),
-                    research_context=top_cue,
-                    risk_exposure=item.get("risk_exposure")
+                    prospect_name=contact_display,
+                    company=cand.company_name,
+                    brand=brand_clean,
+                    industry=cand.industry or "commercial",
+                    location=cand.city or market,
+                    research_context=why_now[:120] if why_now else None,
                 )
 
-                qualification = (
-                    f"[{item['source_type']}] Total Fit: {scoring.total_fit_score}/100. "
-                    f"Risk Exposure: {item.get('risk_exposure', 'Operational risk')}. "
-                    f"Insurance Need: {item.get('insurance_need', 'Specialist underwriting')}."
+                # Persist to database
+                persisted_lead = self.persist(
+                    db=db,
+                    candidate=cand,
+                    brand=brand_clean,
+                    score_res=score_res,
+                    why_now=why_now,
+                    signals=signals,
+                    contacts=contacts,
+                    outreach=outreach,
+                )
+
+                # Formulate LeadScoringBreakdown DTO
+                bd = score_res.breakdown
+                scoring_dto = LeadScoringBreakdown(
+                    industry_fit=float(bd.get("industry_fit", 20)),
+                    company_profile=float(bd.get("company_relevance", 15)),
+                    geographic_relevance=float(bd.get("geographic_fit", 15)),
+                    product_relevance=float(bd.get("product_fit", 15)),
+                    potential_insurance_need=float(bd.get("trigger_strength", 10)),
+                    total_fit_score=float(score_res.total),
+                    industry_fit_reason=f"Alignment with {brand_clean.title()} underwriting guidelines.",
+                    company_profile_reason="Evaluated based on public operational profile and scale.",
+                    geographic_relevance_reason=f"Operating in {cand.country or market}.",
+                    product_relevance_reason=f"Matched to {brand_cfg.product}.",
+                    potential_insurance_need_reason="Evaluated from detected operational expansion triggers.",
                 )
 
                 prospect = LeadProspect(
-                    name=item["name"],
-                    company=item["company"],
-                    industry=item["industry"],
-                    email=item.get("email"),
-                    location=item.get("location"),
-                    company_size=item.get("company_size"),
-                    recommended_brand=target_brand,
-                    fit_score=scoring.total_fit_score,
-                    qualification_reason=qualification,
-                    outreach_draft=outreach,
-                    source=item["source_type"],
-                    source_type=item["source_type"],
-                    likely_decision_maker_role=item.get("likely_decision_maker_role"),
-                    insurance_need=item.get("insurance_need"),
-                    risk_exposure=item.get("risk_exposure"),
-                    why_relevant=item.get("why_relevant"),
-                    discovery_rationale=item.get("discovery_rationale"),
-                    scoring_breakdown=scoring
+                    name=persisted_lead.name,
+                    company=persisted_lead.company,
+                    industry=persisted_lead.industry,
+                    email=persisted_lead.email,
+                    location=persisted_lead.location,
+                    company_size=persisted_lead.company_size,
+                    recommended_brand=persisted_lead.recommended_brand,
+                    fit_score=persisted_lead.fit_score,
+                    qualification_reason=persisted_lead.qualification_reason,
+                    outreach_draft=persisted_lead.outreach_draft,
+                    source=persisted_lead.source,
+                    source_type="DEMO_DATA" if persisted_lead.is_demo else "VERIFIED_SOURCE",
+                    likely_decision_maker_role=contacts[0].role if contacts else "Executive",
+                    insurance_need=brand_cfg.product,
+                    risk_exposure=cand.description or "Commercial liability exposure",
+                    why_relevant=why_now or cand.description,
+                    discovery_rationale=f"Discovered via {cand.source_provider}",
+                    domain=persisted_lead.domain,
+                    phone=persisted_lead.phone,
+                    city=persisted_lead.city,
+                    country=persisted_lead.country,
+                    why_now=persisted_lead.why_now,
+                    score_breakdown_json=persisted_lead.score_breakdown_json,
+                    is_demo=persisted_lead.is_demo,
+                    scoring_breakdown=scoring_dto,
                 )
                 results.append(prospect)
 
-                # Upsert into database
-                existing = db.query(Lead).filter(Lead.company == item["company"]).first()
-                if existing:
-                    existing.fit_score = prospect.fit_score
-                    existing.qualification_reason = prospect.qualification_reason
-                    existing.outreach_draft = prospect.outreach_draft
-                    existing.source = prospect.source_type
-                    existing.status = "qualified" if prospect.fit_score >= 80 else existing.status
-                else:
-                    new_lead = Lead(
-                        name=prospect.name,
-                        company=prospect.company,
-                        industry=prospect.industry,
-                        email=prospect.email,
-                        location=prospect.location,
-                        company_size=prospect.company_size,
-                        fit_score=prospect.fit_score,
-                        qualification_reason=prospect.qualification_reason,
-                        recommended_brand=prospect.recommended_brand,
-                        outreach_draft=prospect.outreach_draft,
-                        source=prospect.source_type,
-                        status="qualified" if prospect.fit_score >= 80 else "new"
-                    )
-                    db.add(new_lead)
-            db.commit()
-
+            logger.info(f"Pipeline completed: {len(results)} leads discovered & scored for {brand_clean}")
         except Exception as e:
+            logger.error(f"Error in discover_and_score_leads pipeline: {e}")
             db.rollback()
-            logger.error(f"Error discovering and scoring leads: {e}")
         finally:
             db.close()
 
         return results
 
+    # -------------------------------------------------------------------------
+    # 10. Enrich existing lead
+    # -------------------------------------------------------------------------
     async def enrich_lead(self, lead_id: int, source_url: Optional[str] = None) -> Lead:
-        """
-        Enrich an existing lead record.
-        If source_url is supplied, scrapes the company page and enriches the lead profile with verified data.
-        If no URL is provided, utilizes Gemini structured analysis to deepen risk reasoning.
-        Updates scoring breakdown explanation and personalized outreach.
-        """
+        """Enrich existing lead record with SSRF-safe website inspection, signal detection, and re-scoring."""
         db = SessionLocal()
         try:
             lead = db.get(Lead, lead_id)
@@ -427,70 +517,47 @@ class LeadService:
                 raise ValueError(f"Lead ID #{lead_id} not found")
 
             brand_clean = (lead.recommended_brand or "doctorshield").lower()
-            enrichment_notes = ""
+            target_url = source_url or lead.website or lead.domain
 
-            # 1. VERIFIED URL ENRICHMENT
-            if source_url:
-                from app.services.research_service import research_service
-                scrape_res = await research_service.scrape_url(source_url)
-                if scrape_res.get("status") == "success":
-                    title = scrape_res.get("title", "")
-                    meta = scrape_res.get("meta_description", "")
-                    headings = ", ".join(scrape_res.get("headings", [])[:3])
-                    
-                    enrichment_notes = (
-                        f"[VERIFIED SOURCE: {source_url}] "
-                        f"Offerings: {headings or title}. "
-                        f"Observed Profile: {meta or title}."
-                    )
-                    lead.source = "VERIFIED_SOURCE"
-                else:
-                    enrichment_notes = f"[VERIFIED SOURCE (Fetch Attempted)]: {source_url}"
+            if target_url:
+                inspected_text = self.inspect_website(target_url)
+                if inspected_text:
+                    lead.description = f"{lead.description or ''} | {inspected_text[:300]}".strip(" | ")
                     lead.source = "VERIFIED_SOURCE"
 
-            # 2. AI ENRICHMENT (No URL provided)
-            elif llm_provider.is_live:
-                try:
-                    prompt = (
-                        f"Analyze risk exposure and commercial insurance rationale for company '{lead.company}' in industry '{lead.industry}' ({lead.location}).\n"
-                        f"Target JA Assure Product: {brand_clean.title()}.\n"
-                        f"Provide a concise 2-sentence rationale focusing on acute liability and underwriting fit."
-                    )
-                    ai_analysis = llm_provider.generate_text(prompt)
-                    enrichment_notes = f"[AI ANALYSIS]: {ai_analysis.strip()}"
-                    lead.source = "AI_ANALYSIS"
-                except Exception as e:
-                    enrichment_notes = f"[AI ANALYSIS]: High exposure to specialized {lead.industry} claims in {lead.location}."
-                    lead.source = "AI_ANALYSIS"
-            else:
-                enrichment_notes = f"[ENRICHED]: Verified risk parameters for {lead.industry} operations in {lead.location}."
-
-            # Update qualification reason
-            lead.qualification_reason = f"{enrichment_notes} | {lead.qualification_reason or ''}"[:600]
-
-            # Re-calculate score
-            scoring = self.calculate_score(
+            # Detect signals from description
+            cand = CandidateCompany(
+                company_name=lead.company,
+                domain=lead.domain,
+                country=lead.country or lead.location,
                 industry=lead.industry,
-                company=lead.company,
-                location=lead.location or "Singapore",
-                company_size=lead.company_size,
-                brand=brand_clean
+                description=lead.description,
+                source_provider=lead.source or "verified_registry",
+                is_demo=lead.is_demo,
+                evidence=[],
             )
-            lead.fit_score = scoring.total_fit_score
+            signals = self.detect_signals(cand, brand_clean)
+            why_now = self.explain_why_now(lead.company, signals, brand_clean)
+            if why_now:
+                lead.why_now = why_now
 
-            # Re-generate outreach with enriched context
+            # Rescore
+            score_res = self.score(cand, brand_clean, signals=signals)
+            lead.fit_score = float(score_res.total)
+            lead.score_breakdown_json = json.dumps(score_res.breakdown)
+
+            # Re-generate outreach
             lead.outreach_draft = self.generate_outreach(
-                prospect_name=lead.name.split("(")[0].strip(),
+                prospect_name=lead.name,
                 company=lead.company,
                 brand=brand_clean,
                 industry=lead.industry,
                 location=lead.location,
-                research_context=enrichment_notes[:100]
+                research_context=why_now[:120] if why_now else None,
             )
 
             db.commit()
             db.refresh(lead)
-            logger.info(f"Enriched lead #{lead.id} ({lead.company}) with source {lead.source}")
             return lead
         except Exception as e:
             db.rollback()
@@ -498,5 +565,47 @@ class LeadService:
             raise e
         finally:
             db.close()
+
+    # -------------------------------------------------------------------------
+    # 11. Rescore Lead
+    # -------------------------------------------------------------------------
+    def score_lead(self, lead_id: int) -> Dict[str, Any]:
+        """Recalculate deterministic 5-factor score for an existing lead by ID."""
+        db = SessionLocal()
+        try:
+            lead = db.get(Lead, lead_id)
+            if not lead:
+                raise ValueError(f"Lead ID #{lead_id} not found")
+
+            brand_clean = (lead.recommended_brand or "doctorshield").lower()
+            cand = CandidateCompany(
+                company_name=lead.company,
+                domain=lead.domain,
+                country=lead.country or lead.location,
+                industry=lead.industry,
+                description=lead.description,
+                source_provider=lead.source or "prospecting",
+                is_demo=lead.is_demo,
+            )
+            signals = self.detect_signals(cand, brand_clean)
+            why_now = self.explain_why_now(lead.company, signals, brand_clean)
+            score_res = self.score(cand, brand_clean, signals=signals)
+
+            lead.fit_score = float(score_res.total)
+            lead.score_breakdown_json = json.dumps(score_res.breakdown)
+            if why_now:
+                lead.why_now = why_now
+
+            db.commit()
+            db.refresh(lead)
+            return {
+                "lead_id": lead.id,
+                "score": lead.fit_score,
+                "score_breakdown": score_res.breakdown,
+                "why_now": lead.why_now,
+            }
+        finally:
+            db.close()
+
 
 lead_service = LeadService()

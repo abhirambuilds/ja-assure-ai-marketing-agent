@@ -7,7 +7,10 @@ import {
   ChevronDown, 
   ChevronUp, 
   Copy, 
-  Mail
+  Mail,
+  Globe,
+  Phone,
+  Zap
 } from 'lucide-react';
 import type { Lead } from '../../types';
 
@@ -148,14 +151,22 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
         ) : (
           leads.map((lead) => {
             const isExpanded = expandedLeadId === lead.id;
-            const fitScore = lead.fit_score || 75;
+            const fitScore = Math.round(lead.fit_score || 75);
 
-            // Compute 5-factor breakdown visually
-            const industryFit = Math.min(25, Math.round(fitScore * 0.25));
-            const companyProfile = Math.min(25, Math.round(fitScore * 0.25));
-            const geoRelevance = Math.min(20, Math.round(fitScore * 0.20));
-            const productRelevance = Math.min(15, Math.round(fitScore * 0.15));
-            const insuranceNeed = Math.min(15, Math.round(fitScore * 0.15));
+            // Compute or parse 5-factor breakdown
+            let parsedBreakdown: Record<string, number> | null = null;
+            if (lead.score_breakdown_json) {
+              try {
+                parsedBreakdown = JSON.parse(lead.score_breakdown_json);
+              } catch {
+                parsedBreakdown = null;
+              }
+            }
+            const industryFit = parsedBreakdown?.industry_fit ?? Math.min(25, Math.round(fitScore * 0.25));
+            const companyProfile = parsedBreakdown?.company_relevance ?? Math.min(20, Math.round(fitScore * 0.20));
+            const geoRelevance = parsedBreakdown?.geographic_fit ?? Math.min(20, Math.round(fitScore * 0.20));
+            const productRelevance = parsedBreakdown?.product_fit ?? Math.min(20, Math.round(fitScore * 0.20));
+            const triggerStrength = parsedBreakdown?.trigger_strength ?? Math.min(15, Math.round(fitScore * 0.15));
 
             return (
               <div 
@@ -169,6 +180,11 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                       <h4 className="font-bold text-sm text-slate-900">{lead.company}</h4>
                       {lead.recommended_brand && getBrandBadge(lead.recommended_brand)}
                       {getSourceTypeBadge(lead.source, lead.source_type)}
+                      {lead.is_demo && (
+                        <span className="text-[10px] font-semibold bg-amber-100 text-amber-800 border border-amber-200 px-2 py-0.5 rounded-full">
+                          DEMO DATA
+                        </span>
+                      )}
                       <span className="text-[10px] text-slate-400">#{lead.id}</span>
                     </div>
 
@@ -181,6 +197,23 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                         <span className="flex items-center gap-1">
                           <MapPin className="w-3.5 h-3.5 text-slate-400" />
                           {lead.location}
+                        </span>
+                      )}
+                      {lead.domain && (
+                        <a 
+                          href={lead.website || `https://${lead.domain}`} 
+                          target="_blank" 
+                          rel="noreferrer"
+                          className="flex items-center gap-1 text-blue-600 hover:underline"
+                        >
+                          <Globe className="w-3.5 h-3.5 text-slate-400" />
+                          {lead.domain}
+                        </a>
+                      )}
+                      {lead.phone && (
+                        <span className="flex items-center gap-1 text-slate-600">
+                          <Phone className="w-3.5 h-3.5 text-slate-400" />
+                          {lead.phone}
                         </span>
                       )}
                       {lead.name && (
@@ -224,8 +257,19 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                 {/* Expandable Section: 5-Factor Score Breakdown & AI Outreach */}
                 {isExpanded && (
                   <div className="px-5 pb-5 pt-2 border-t border-slate-100 bg-slate-50 space-y-4 text-xs">
+                    {/* "Why Now" Opportunity Trigger */}
+                    {lead.why_now && (
+                      <div className="p-3.5 rounded-lg bg-amber-50/80 border border-amber-200/90 space-y-1 shadow-2xs">
+                        <span className="font-bold text-amber-900 uppercase text-[10px] flex items-center gap-1.5">
+                          <Zap className="w-3.5 h-3.5 text-amber-600" />
+                          "Why Now" Underwriting Opportunity Trigger
+                        </span>
+                        <p className="text-amber-950 text-[11px] leading-relaxed font-sans">{lead.why_now}</p>
+                      </div>
+                    )}
+
                     {/* Qualification Rationale */}
-                    {lead.qualification_reason && (
+                    {lead.qualification_reason && !lead.why_now && (
                       <div className="p-3 rounded-lg bg-white border border-slate-200 space-y-1 shadow-2xs">
                         <span className="font-bold text-slate-800 uppercase text-[10px]">Underwriter Rationale</span>
                         <p className="text-slate-600 text-[11px] leading-relaxed font-sans">{lead.qualification_reason}</p>
@@ -235,7 +279,7 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                     {/* 5-Factor Underwriting Score Breakdown */}
                     <div className="space-y-2">
                       <span className="font-bold text-slate-800 uppercase text-[10px] block">
-                        5-Factor Transparent Scoring Breakdown
+                        5-Factor Deterministic Scoring Breakdown
                       </span>
                       <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-[10px]">
                         <div className="p-2.5 rounded-lg bg-white border border-slate-200 space-y-1 shadow-2xs">
@@ -244,7 +288,7 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                         </div>
                         <div className="p-2.5 rounded-lg bg-white border border-slate-200 space-y-1 shadow-2xs">
                           <span className="text-slate-500 block">2. Company Profile</span>
-                          <span className="text-emerald-700 font-bold text-xs">{companyProfile}/25 pts</span>
+                          <span className="text-emerald-700 font-bold text-xs">{companyProfile}/20 pts</span>
                         </div>
                         <div className="p-2.5 rounded-lg bg-white border border-slate-200 space-y-1 shadow-2xs">
                           <span className="text-slate-500 block">3. Geo Relevance</span>
@@ -252,11 +296,11 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                         </div>
                         <div className="p-2.5 rounded-lg bg-white border border-slate-200 space-y-1 shadow-2xs">
                           <span className="text-slate-500 block">4. Product Fit</span>
-                          <span className="text-indigo-700 font-bold text-xs">{productRelevance}/15 pts</span>
+                          <span className="text-indigo-700 font-bold text-xs">{productRelevance}/20 pts</span>
                         </div>
                         <div className="p-2.5 rounded-lg bg-white border border-slate-200 space-y-1 shadow-2xs">
-                          <span className="text-slate-500 block">5. Insurance Need</span>
-                          <span className="text-purple-700 font-bold text-xs">{insuranceNeed}/15 pts</span>
+                          <span className="text-slate-500 block">5. Triggers & Need</span>
+                          <span className="text-purple-700 font-bold text-xs">{triggerStrength}/15 pts</span>
                         </div>
                       </div>
                     </div>
