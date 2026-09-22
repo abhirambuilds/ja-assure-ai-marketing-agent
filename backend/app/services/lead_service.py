@@ -90,8 +90,9 @@ class LeadService:
         except Exception as e:
             logger.warning(f"Market Intel discovery error: {e}")
 
-        # 3. Verified Industry Directories & Demo Pool fallback
-        if not candidates or len(candidates) < 3:
+        # 3. Verified Industry Directories fallback (only when no real candidates found and not in real mode)
+        from app.config import settings
+        if not candidates and settings.LEAD_AGENT_MODE != "real":
             try:
                 industry_provider = IndustrySourceProvider()
                 industry_results = industry_provider.discover(request)

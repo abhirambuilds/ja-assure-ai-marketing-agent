@@ -5,6 +5,10 @@ from typing import List, Optional, Set
 import httpx
 
 from app.config import settings
+from app.services.security.dns_resolver import install_resilient_dns
+
+install_resilient_dns()
+
 from app.services.discovery.base import (
     CandidateCompany,
     DiscoveryProvider,

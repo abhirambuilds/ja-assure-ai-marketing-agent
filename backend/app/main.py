@@ -8,6 +8,10 @@ from app.config import settings
 from app.api.v1.api import api_router
 from app.database.session import engine
 from app.models.entities import Base
+from app.services.security.dns_resolver import install_resilient_dns
+
+# Global resilient DNS hook
+install_resilient_dns()
 
 # Setup logging
 logging.basicConfig(

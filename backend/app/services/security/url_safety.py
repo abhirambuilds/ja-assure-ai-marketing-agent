@@ -6,6 +6,10 @@ from urllib.parse import urlparse
 
 import httpx
 
+from app.services.security.dns_resolver import install_resilient_dns
+
+install_resilient_dns()
+
 
 class UnsafeURL(ValueError):
     """Raised when a URL fails SSRF safety validation."""

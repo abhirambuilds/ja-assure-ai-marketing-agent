@@ -27,13 +27,13 @@ class Settings(BaseSettings):
 
     # LLM Settings (Groq API)
     GROQ_API_KEY: str = ""
-    GROQ_MODEL: str = "groq/compound"
+    GROQ_MODEL: str = "qwen/qwen3.8-27b"
 
     # Optional Lead Discovery & Enrichment API Keys
     GOOGLE_MAPS_API_KEY: str = ""
     HUNTER_API_KEY: str = ""
     SEARCH_API_KEY: str = ""
-    LEAD_AGENT_MODE: str = "demo"
+    LEAD_AGENT_MODE: str = "real"
 
     # Email & Outreach Automation Settings
     EMAIL_PROVIDER: str = "mock"
