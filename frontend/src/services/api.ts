@@ -15,7 +15,9 @@ import type {
   ComplianceResult,
   PublishingRecord,
   ReviewDecisionItem,
-  VoiceGenerationResponse
+  VoiceGenerationResponse,
+  ExecutiveDigest,
+  ExecutiveDigestGenerateRequest
 } from '../types';
 
 import {
@@ -45,6 +47,71 @@ let inMemoryFeedbacks: Feedback[] = [...mockFeedbacks];
 let inMemoryPublishing: PublishingRecord[] = [...mockPublishingRecords];
 let inMemoryLeads: Lead[] = [...mockLeads];
 let inMemoryCompetitors: Competitor[] = [...mockCompetitors];
+
+const mockInitialDigest: ExecutiveDigest = {
+  id: 1,
+  title: 'JA Assure Executive Competitor & Market Digest (Singapore) — March 2026',
+  brand: 'all',
+  market: 'Singapore',
+  niche: 'all',
+  period_start: new Date(Date.now() - 30 * 86400000).toISOString(),
+  period_end: new Date().toISOString(),
+  executive_summary: "Over the past 30 days in Singapore, competitive monitoring highlights significant structural movement across niche specialty insurance lines. Incumbent carriers continue to grapple with elevated claim inflation and legacy distribution costs, triggering premium rate firming, more stringent vault/security warranties, and longer underwriting turnaround times.\n\nJA Assure's direct InsurTech architecture and Lloyd's coverholder capacity create an immediate commercial opening to displace incumbents by offering transparent digital quotation, flexible warranty requirements, and guaranteed rate certainty.",
+  what_ja_should_do: "### 1. 🎯 Tactical Pricing & Margin Strategy\n- **Jade**: Capitalize on Chubb's high minimum premium (SGD 4,500+) by offering qualified retail jewellers our SGD 2,800 entry tier with zero deductible on certified in-safe stock.\n- **DoctorShield**: Target aesthetic practitioners facing MPS's 14% subscription hike with guaranteed 20% lower baseline premiums and contract certainty.\n- **Jaguar Transit**: Promote our flat-rate declaration structure to diamond/watch merchants tired of Brink's SGD 350 minimum per-pickup fee.\n\n### 2. 🛡️ Product & Policy Coverage Counter-Actions\n- **Waiver of Grade IV Safe Mandates**: Where Chubb enforces expensive safe upgrades, offer Jade coverage with existing Grade III safes supported by approved CCTV telematics.\n- **Contract Certainty vs Discretionary Mutual**: Launch educational messaging emphasizing that DoctorShield is a regulated, legally enforceable insurance contract under Lloyd's coverholders, unlike MPS mutual protection.\n\n### 3. ⚔️ Sales Team Battlecard & Lead Outreach Strategy\n- Equip sales reps with direct objection-handling scripts: 'When your MPS renewal arrives with an inflation increase, let us benchmark your coverage under DoctorShield before you pay.'\n- Cross-reference Module 1 jewellery leads approaching Q2 renewal cycles with Chubb comparison figures.\n\n### 4. 📢 Marketing & Campaign Positioning\n- Launch LinkedIn thought leadership highlighting: *'Why InsurTech is beating legacy paper proposals in Singapore Jewellers Block'*. Feature Alan Tham (Chief Insurance Officer) commentary.",
+  source_count: 8,
+  model: 'Groq (Llama-3/Compound)',
+  status: 'published',
+  generated_at: new Date().toISOString(),
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
+  total_shifts_analyzed: 2,
+  changes_analyzed: [
+    {
+      competitor: 'Chubb Fine Art & Specie',
+      change_type: 'coverage_update',
+      severity: 'critical',
+      title: 'Safe Warranty Mandate Upgraded to Grade V',
+      description: 'Incumbent underwriter mandated Grade V safes for commercial jewelers with stock exceeding SGD 500,000.',
+      detected_at: new Date(Date.now() - 3 * 86400000).toISOString(),
+    },
+    {
+      competitor: 'Medical Protection Society (MPS)',
+      change_type: 'pricing_change',
+      severity: 'major',
+      title: 'Annual Subscription Rate Revision (+14%)',
+      description: 'Discretionary mutual membership fees increased across cosmetic surgery and aesthetic medicine specializations.',
+      detected_at: new Date(Date.now() - 7 * 86400000).toISOString(),
+    }
+  ],
+  lead_signals_analyzed: [
+    {
+      company: 'Orchard Gem Vault Pte Ltd',
+      industry: 'jewellery',
+      fit_score: 92,
+      recommended_brand: 'jade',
+      why_now: 'Opening second flagship boutique in Marina Bay; seeking flexible safe endorsements.',
+    }
+  ],
+  pricing_strategy_points: [
+    "Jade: Undercut Chubb's high minimum premium (SGD 4,500+) with SGD 2,800 entry tier and zero deductible.",
+    "DoctorShield: Target aesthetic practitioners facing MPS's 14% subscription hike with guaranteed 20% lower baseline premiums.",
+    "Jaguar Transit: Promote flat-rate declaration structure against Brink's high minimum per-pickup fee."
+  ],
+  underwriting_tweaks: [
+    "Waiver of Grade IV Safe Mandates: Offer Jade coverage with existing Grade III safes with approved CCTV telematics.",
+    "Contract Certainty vs Discretionary Mutual: Emphasize DoctorShield regulated, legally enforceable policy under Lloyd's coverholders."
+  ],
+  battlecard_updates: [
+    "Equip sales reps with objection-handling: 'When your MPS renewal arrives, benchmark under DoctorShield before you pay.'",
+    "Cross-reference Module 1 jewellery leads approaching Q2 renewal cycles with Chubb comparison figures."
+  ],
+  marketing_campaign_ideas: [
+    "Launch LinkedIn thought leadership: 'Why InsurTech is beating legacy paper proposals in Singapore Jewellers Block'.",
+    "Targeted DoctorShield campaigns emphasizing contract certainty and statutory protection in Singapore."
+  ]
+};
+
+let inMemoryDigests: ExecutiveDigest[] = [mockInitialDigest];
 
 async function safeFetch<T>(url: string, options?: RequestInit, fallbackData?: T): Promise<T> {
   try {
@@ -792,5 +859,110 @@ export const api = {
     const rec = inMemoryPublishing.find(r => r.id === recordId) || inMemoryPublishing[0];
     rec.status = 'cancelled';
     return safeFetch<PublishingRecord>(`${API_BASE_URL}/publishing/records/${recordId}/cancel`, { method: 'POST' }, rec);
+  },
+
+  // Executive Digest
+  getDigests: async (params?: { brand?: string; market?: string; limit?: number }): Promise<ExecutiveDigest[]> => {
+    const query = new URLSearchParams();
+    if (params?.brand && params.brand !== 'all') query.append('brand', params.brand);
+    if (params?.market && params.market !== 'all') query.append('market', params.market);
+    if (params?.limit) query.append('limit', String(params.limit));
+
+    let filtered = [...inMemoryDigests];
+    if (params?.brand && params.brand !== 'all') {
+      filtered = filtered.filter(d => d.brand === params.brand || d.brand === 'all');
+    }
+    if (params?.market && params.market !== 'all') {
+      filtered = filtered.filter(d => d.market === params.market);
+    }
+    const url = query.toString() ? `${API_BASE_URL}/digests?${query.toString()}` : `${API_BASE_URL}/digests`;
+    return safeFetch<ExecutiveDigest[]>(url, undefined, filtered);
+  },
+
+  getLatestDigest: async (params?: { brand?: string; market?: string }): Promise<ExecutiveDigest> => {
+    const query = new URLSearchParams();
+    if (params?.brand && params.brand !== 'all') query.append('brand', params.brand);
+    if (params?.market && params.market !== 'all') query.append('market', params.market);
+
+    const fallback = inMemoryDigests[0];
+    const url = query.toString() ? `${API_BASE_URL}/digests/latest?${query.toString()}` : `${API_BASE_URL}/digests/latest`;
+    return safeFetch<ExecutiveDigest>(url, undefined, fallback);
+  },
+
+  getDigest: async (id: number): Promise<ExecutiveDigest> => {
+    const fallback = inMemoryDigests.find(d => d.id === id) || inMemoryDigests[0];
+    return safeFetch<ExecutiveDigest>(`${API_BASE_URL}/digests/${id}`, undefined, fallback);
+  },
+
+  generateDigest: async (payload: ExecutiveDigestGenerateRequest): Promise<ExecutiveDigest> => {
+    const targetBrand = payload.brand || 'all';
+    const targetMarket = payload.market || 'Singapore';
+
+    const mockGenerated: ExecutiveDigest = {
+      id: Date.now(),
+      title: `JA Assure Executive Competitor Digest (${targetMarket}) — ${new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`,
+      brand: targetBrand,
+      market: targetMarket,
+      niche: payload.niche || 'all',
+      period_start: new Date(Date.now() - (payload.period_days || 30) * 86400000).toISOString(),
+      period_end: new Date().toISOString(),
+      executive_summary: `Over the past ${payload.period_days || 30} days in ${targetMarket}, competitor monitoring highlights significant structural shifts across niche specialty insurance lines. Incumbent carriers continue to grapple with elevated claim inflation and legacy distribution costs, triggering premium rate firming, more stringent vault/security warranties, and longer underwriting turnaround times.\n\nJA Assure's direct InsurTech architecture and Lloyd's coverholder capacity create an immediate commercial opening to displace incumbents by offering transparent digital quotation, flexible warranty requirements, and guaranteed rate certainty.`,
+      what_ja_should_do: `### 1. 🎯 Tactical Pricing & Margin Strategy\n- **Jade**: Capitalize on Chubb's high minimum premium (SGD 4,500+) by offering qualified retail jewellers our SGD 2,800 entry tier with zero deductible on certified in-safe stock.\n- **DoctorShield**: Target aesthetic practitioners facing MPS's 14% subscription hike with guaranteed 20% lower baseline premiums and contract certainty.\n- **Jaguar Transit**: Promote our flat-rate declaration structure to diamond/watch merchants tired of Brink's SGD 350 minimum per-pickup fee.\n\n### 2. 🛡️ Product & Policy Coverage Counter-Actions\n- **Waiver of Grade IV Safe Mandates**: Where Chubb enforces expensive safe upgrades, offer Jade coverage with existing Grade III safes supported by approved CCTV telematics.\n- **Contract Certainty vs Discretionary Mutual**: Launch educational messaging emphasizing that DoctorShield is a regulated, legally enforceable insurance contract under Lloyd's coverholders, unlike MPS mutual protection.\n\n### 3. ⚔️ Sales Team Battlecard & Lead Outreach Strategy\n- Equip sales reps with direct objection-handling scripts: 'When your MPS renewal arrives with an inflation increase, let us benchmark your coverage under DoctorShield before you pay.'\n- Cross-reference Module 1 jewellery leads approaching Q2 renewal cycles with Chubb comparison figures.\n\n### 4. 📢 Marketing & Campaign Positioning\n- Launch LinkedIn thought leadership highlighting: *'Why InsurTech is beating legacy paper proposals in Singapore Jewellers Block'*. Feature Alan Tham (Chief Insurance Officer) commentary.`,
+      source_count: 6,
+      model: 'Groq (Llama-3/Compound)',
+      status: 'published',
+      generated_at: new Date().toISOString(),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      total_shifts_analyzed: 2,
+      changes_analyzed: [
+        {
+          competitor: 'Chubb Fine Art & Specie',
+          change_type: 'coverage_update',
+          severity: 'critical',
+          title: 'Safe Warranty Mandate Upgraded to Grade V',
+          description: 'Incumbent underwriter mandated Grade V safes for commercial jewelers with stock exceeding SGD 500,000.',
+          detected_at: new Date(Date.now() - 3 * 86400000).toISOString(),
+        }
+      ],
+      lead_signals_analyzed: [
+        {
+          company: 'Orchard Gem Vault Pte Ltd',
+          industry: 'jewellery',
+          fit_score: 92,
+          recommended_brand: 'jade',
+          why_now: 'Opening second flagship boutique in Marina Bay; seeking flexible safe endorsements.',
+        }
+      ],
+      pricing_strategy_points: [
+        "Jade: Undercut Chubb's high minimum premium (SGD 4,500+) with SGD 2,800 entry tier and zero deductible.",
+        "DoctorShield: Target aesthetic practitioners facing MPS's 14% subscription hike with guaranteed 20% lower baseline premiums.",
+        "Jaguar Transit: Promote flat-rate declaration structure against Brink's high minimum per-pickup fee."
+      ],
+      underwriting_tweaks: [
+        "Waiver of Grade IV Safe Mandates: Offer Jade coverage with existing Grade III safes with approved CCTV telematics.",
+        "Contract Certainty vs Discretionary Mutual: Emphasize DoctorShield regulated, legally enforceable policy under Lloyd's coverholders."
+      ],
+      battlecard_updates: [
+        "Equip sales reps with objection-handling: 'When your MPS renewal arrives, benchmark under DoctorShield before you pay.'",
+        "Cross-reference Module 1 jewellery leads approaching Q2 renewal cycles with Chubb comparison figures."
+      ],
+      marketing_campaign_ideas: [
+        "Launch LinkedIn thought leadership: 'Why InsurTech is beating legacy paper proposals in Singapore Jewellers Block'.",
+        "Targeted DoctorShield campaigns emphasizing contract certainty and statutory protection in Singapore."
+      ]
+    };
+
+    inMemoryDigests.unshift(mockGenerated);
+
+    return safeFetch<ExecutiveDigest>(
+      `${API_BASE_URL}/digests/generate`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      },
+      mockGenerated
+    );
   }
 };

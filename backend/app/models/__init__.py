@@ -11,6 +11,7 @@ from app.models.entities import (
     Analytics,
     PublishingRecord,
     ReviewDecision,
+    ExecutiveDigest,
 )
 
 __all__ = [
@@ -26,4 +27,5 @@ __all__ = [
     "Analytics",
     "PublishingRecord",
     "ReviewDecision",
+    "ExecutiveDigest",
 ]

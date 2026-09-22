@@ -338,3 +338,54 @@ export interface HealthCheckResponse {
   llm_mode: string;
   supported_brands: string[];
 }
+
+export interface ExecutiveDigest {
+  id: number;
+  title: string;
+  brand: string;
+  market: string;
+  niche: string;
+  period_start: string;
+  period_end: string;
+  executive_summary: string;
+  what_ja_should_do: string;
+  key_changes_json?: string;
+  lead_signals_json?: string;
+  digest_json?: string;
+  source_count: number;
+  model?: string;
+  status: string;
+  generated_at: string;
+  created_at: string;
+  updated_at: string;
+  total_shifts_analyzed: number;
+  changes_analyzed: Array<{
+    competitor?: string;
+    change_type?: string;
+    severity?: string;
+    title?: string;
+    description?: string;
+    detected_at?: string;
+    source_url?: string;
+    [key: string]: any;
+  }>;
+  lead_signals_analyzed: Array<{
+    company?: string;
+    industry?: string;
+    fit_score?: number;
+    recommended_brand?: string;
+    why_now?: string;
+    [key: string]: any;
+  }>;
+  pricing_strategy_points: string[];
+  underwriting_tweaks: string[];
+  battlecard_updates: string[];
+  marketing_campaign_ideas: string[];
+}
+
+export interface ExecutiveDigestGenerateRequest {
+  brand?: string;
+  market?: string;
+  niche?: string;
+  period_days?: number;
+}

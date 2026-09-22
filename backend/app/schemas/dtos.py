@@ -331,3 +331,56 @@ class PublishingRecordResponse(PublishingRecordBase):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+# ----------------- Executive Digest DTOs -----------------
+class ExecutiveDigestGenerateRequest(BaseModel):
+    brand: Optional[str] = "all"
+    market: Optional[str] = "Singapore"
+    niche: Optional[str] = "all"
+    period_days: int = 30
+
+class ExecutiveDigestCreate(BaseModel):
+    title: str
+    brand: str = "all"
+    market: str = "Singapore"
+    niche: str = "all"
+    period_start: Optional[datetime] = None
+    period_end: Optional[datetime] = None
+    executive_summary: str
+    what_ja_should_do: str
+    key_changes_json: Optional[str] = None
+    lead_signals_json: Optional[str] = None
+    digest_json: Optional[str] = None
+    source_count: int = 0
+    model: Optional[str] = "Groq (Llama-3/Compound)"
+    status: str = "published"
+
+class ExecutiveDigestResponse(BaseModel):
+    id: int
+    title: str
+    brand: str
+    market: str
+    niche: str
+    period_start: datetime
+    period_end: datetime
+    executive_summary: str
+    what_ja_should_do: str
+    key_changes_json: Optional[str] = None
+    lead_signals_json: Optional[str] = None
+    digest_json: Optional[str] = None
+    source_count: int
+    model: Optional[str] = None
+    status: str
+    generated_at: datetime
+    created_at: datetime
+    updated_at: datetime
+
+    total_shifts_analyzed: int = 0
+    changes_analyzed: List[Dict[str, Any]] = []
+    lead_signals_analyzed: List[Dict[str, Any]] = []
+    pricing_strategy_points: List[str] = []
+    underwriting_tweaks: List[str] = []
+    battlecard_updates: List[str] = []
+    marketing_campaign_ideas: List[str] = []
+
+    model_config = ConfigDict(from_attributes=True)

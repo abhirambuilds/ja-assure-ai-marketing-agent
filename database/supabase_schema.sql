@@ -574,5 +574,46 @@ CREATE TRIGGER trg_lessons_learned_updated_at
 
 
 -- ==============================================================================
+-- 10. EXECUTIVE DIGESTS
+-- Synthesizes observed competitor shifts, pricing anomalies, warranty gaps,
+-- and lead signals into an actionable 4-pillar strategic action plan for JA Assure.
+-- ==============================================================================
+
+CREATE TABLE IF NOT EXISTS executive_digests (
+    id SERIAL PRIMARY KEY,
+    title VARCHAR(300) NOT NULL,
+    brand VARCHAR(50) NOT NULL DEFAULT 'all',
+    market VARCHAR(100) NOT NULL DEFAULT 'Singapore',
+    niche VARCHAR(80) NOT NULL DEFAULT 'all',
+    period_start TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    period_end TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    executive_summary TEXT NOT NULL,
+    what_ja_should_do TEXT NOT NULL,
+    key_changes_json TEXT,
+    lead_signals_json TEXT,
+    digest_json TEXT,
+    source_count INTEGER DEFAULT 0,
+    model VARCHAR(100) DEFAULT 'Groq (Llama-3/Compound)',
+    status VARCHAR(40) NOT NULL DEFAULT 'published',
+    generated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS ix_executive_digests_id ON executive_digests(id);
+CREATE INDEX IF NOT EXISTS ix_executive_digests_brand ON executive_digests(brand);
+CREATE INDEX IF NOT EXISTS ix_executive_digests_market ON executive_digests(market);
+CREATE INDEX IF NOT EXISTS ix_executive_digests_niche ON executive_digests(niche);
+CREATE INDEX IF NOT EXISTS ix_executive_digests_status ON executive_digests(status);
+CREATE INDEX IF NOT EXISTS ix_executive_digests_generated_at ON executive_digests(generated_at);
+
+DROP TRIGGER IF EXISTS trg_executive_digests_updated_at ON executive_digests;
+CREATE TRIGGER trg_executive_digests_updated_at
+    BEFORE UPDATE ON executive_digests
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+
+-- ==============================================================================
 -- END OF JA ASSURE AI MARKETING AGENT SCHEMA
 -- ==============================================================================

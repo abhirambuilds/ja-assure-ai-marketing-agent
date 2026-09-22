@@ -11,6 +11,7 @@ from app.api.v1.lessons import router as lessons_router
 from app.api.v1.analytics import router as analytics_router
 from app.api.v1.publishing import router as publishing_router
 from app.api.v1.agents import router as agents_router
+from app.api.v1.digests import router as digests_router
 
 api_router = APIRouter()
 
@@ -18,6 +19,7 @@ api_router.include_router(health_router)
 api_router.include_router(research_router)
 api_router.include_router(competitors_router)
 api_router.include_router(leads_router)
+api_router.include_router(digests_router)
 api_router.include_router(content_router)
 api_router.include_router(compliance_router)
 api_router.include_router(queue_router)

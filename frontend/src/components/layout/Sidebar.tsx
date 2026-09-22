@@ -9,14 +9,26 @@ import {
   Layers, 
   Activity, 
   CheckCircle2, 
-  AlertTriangle 
+  AlertTriangle,
+  FileText,
+  type LucideIcon 
 } from 'lucide-react';
 import { JaAssureLogo } from '../common/BrandLogos';
 import type { HealthCheckResponse } from '../../types';
 
+export type TabType = 'dashboard' | 'studio' | 'review' | 'competitors' | 'leads' | 'digest' | 'learning' | 'analytics';
+
+interface NavItem {
+  id: TabType;
+  label: string;
+  icon: LucideIcon;
+  badge?: React.ReactNode;
+  badgeColor?: string;
+}
+
 interface SidebarProps {
-  activeTab: 'dashboard' | 'studio' | 'review' | 'competitors' | 'leads' | 'learning' | 'analytics';
-  setActiveTab: (tab: 'dashboard' | 'studio' | 'review' | 'competitors' | 'leads' | 'learning' | 'analytics') => void;
+  activeTab: TabType;
+  setActiveTab: (tab: TabType) => void;
   pendingReviewCount: number;
   health: HealthCheckResponse | null;
 }
@@ -27,7 +39,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   pendingReviewCount,
   health
 }) => {
-  const navItems = [
+  const navItems: NavItem[] = [
     { id: 'dashboard', label: 'Executive Overview', icon: TrendingUp, badge: null },
     { id: 'studio', label: 'Content Studio', icon: Wand2, badge: null },
     { 
@@ -39,9 +51,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
     },
     { id: 'competitors', label: 'Competitor Intel', icon: Search, badge: null },
     { id: 'leads', label: 'Lead Intelligence', icon: Users, badge: null },
+    { id: 'digest', label: 'Executive Digest', icon: FileText, badge: null },
     { id: 'learning', label: 'Closed-Loop Memory', icon: BrainCircuit, badge: null },
     { id: 'analytics', label: 'Governance Analytics', icon: Layers, badge: null },
-  ] as const;
+  ];
 
   return (
     <aside className="w-64 bg-white border-r border-slate-200 flex flex-col justify-between shrink-0 h-screen sticky top-0 z-40 select-none">

@@ -19,7 +19,7 @@ interface DashboardViewProps {
   summary: DashboardSummary | null;
   queue: ContentQueueItem[];
   lessons: LessonLearned[];
-  setActiveTab: (tab: 'dashboard' | 'studio' | 'review' | 'competitors' | 'leads' | 'learning' | 'analytics') => void;
+  setActiveTab: (tab: 'dashboard' | 'studio' | 'review' | 'competitors' | 'leads' | 'digest' | 'learning' | 'analytics') => void;
   getBrandBadge: (brand: string) => React.ReactNode;
   getStatusBadge: (status: string) => React.ReactNode;
 }

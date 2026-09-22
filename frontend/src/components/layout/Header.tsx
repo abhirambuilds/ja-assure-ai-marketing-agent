@@ -4,7 +4,7 @@ import { JaAssureLogo } from '../common/BrandLogos';
 import type { HealthCheckResponse } from '../../types';
 
 interface HeaderProps {
-  activeTab: 'dashboard' | 'studio' | 'review' | 'competitors' | 'leads' | 'learning' | 'analytics';
+  activeTab: 'dashboard' | 'studio' | 'review' | 'competitors' | 'leads' | 'digest' | 'learning' | 'analytics';
   selectedBrand: string;
   setSelectedBrand: (brand: string) => void;
   health: HealthCheckResponse | null;
@@ -32,6 +32,10 @@ const tabMeta: Record<string, { title: string; subtitle: string }> = {
   leads: {
     title: 'B2B Lead Intelligence & Prospecting',
     subtitle: '5-factor underwriting qualification scoring with tailored AI-assisted risk outreach'
+  },
+  digest: {
+    title: 'Executive Intelligence Digest',
+    subtitle: 'Cross-module synthesis of competitor shifts and lead signals into four strategic action pillars'
   },
   learning: {
     title: 'Closed-Loop Learning Repository',

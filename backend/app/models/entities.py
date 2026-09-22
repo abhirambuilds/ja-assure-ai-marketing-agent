@@ -447,3 +447,127 @@ class ReviewDecision(Base):
     __table_args__ = (
         Index("ix_review_decisions_asset", "asset_type", "asset_id"),
     )
+
+
+class ExecutiveDigest(Base):
+    """
+    Executive Competitor & Market Intelligence Digest.
+    Synthesizes observed competitor shifts, pricing anomalies, warranty gaps,
+    and lead signals into an actionable four-pillar strategic action plan for JA Assure.
+    """
+    __tablename__ = "executive_digests"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
+    title: Mapped[str] = mapped_column(String(300), nullable=False)
+    brand: Mapped[str] = mapped_column(String(50), default="all", index=True) # all, jade, doctorshield, jaguartransit
+    market: Mapped[str] = mapped_column(String(100), default="Singapore", index=True) # Singapore, Malaysia, Hong Kong, Thailand, Indonesia
+    niche: Mapped[str] = mapped_column(String(80), default="all", index=True) # all, jewellery, transit, medical
+    period_start: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
+    period_end: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
+    executive_summary: Mapped[str] = mapped_column(Text, nullable=False)
+    what_ja_should_do: Mapped[str] = mapped_column(Text, nullable=False) # 4-Pillar Action Blueprint
+    key_changes_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True) # Competitor shifts analyzed
+    lead_signals_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True) # Lead discovery signals analyzed
+    digest_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True) # Full structured JSON payload
+    source_count: Mapped[int] = mapped_column(Integer, default=0)
+    model: Mapped[Optional[str]] = mapped_column(String(100), default="Groq (Llama-3/Compound)")
+    status: Mapped[str] = mapped_column(String(40), default="published", index=True) # draft, published, archived
+    generated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, onupdate=utc_now)
+
+    @property
+    def executive_briefing(self) -> str:
+        return self.executive_summary or ""
+
+    @property
+    def total_shifts_analyzed(self) -> int:
+        if self.key_changes_json:
+            try:
+                import json
+                items = json.loads(self.key_changes_json)
+                return len(items) if isinstance(items, list) else 0
+            except Exception:
+                return 0
+        return 0
+
+    @property
+    def changes_analyzed(self) -> list:
+        if self.key_changes_json:
+            try:
+                import json
+                return json.loads(self.key_changes_json)
+            except Exception:
+                return []
+        return []
+
+    @property
+    def lead_signals_analyzed(self) -> list:
+        if self.lead_signals_json:
+            try:
+                import json
+                return json.loads(self.lead_signals_json)
+            except Exception:
+                return []
+        return []
+
+    def _extract_pillar_points(self, *keywords: str) -> list[str]:
+        """Extracts actionable bullet points for a specific pillar from what_ja_should_do or digest_json."""
+        if self.digest_json:
+            try:
+                import json
+                d = json.loads(self.digest_json)
+                for key in ["pillars", "strategic_pillars", "playbook"]:
+                    if key in d and isinstance(d[key], dict):
+                        for kw in keywords:
+                            for p_key, points in d[key].items():
+                                if kw.lower() in p_key.lower() and isinstance(points, list):
+                                    return [str(p) for p in points if p]
+            except Exception:
+                pass
+
+        if not self.what_ja_should_do:
+            return ["Review baseline rating and underwriting matrix."]
+
+        # Parse markdown headers
+        lines = self.what_ja_should_do.splitlines()
+        capturing = False
+        points = []
+        for line in lines:
+            line_str = line.strip()
+            if line_str.startswith("#"):
+                # Check if this section header matches any of our keywords
+                header_matches = any(kw.lower() in line_str.lower() for kw in keywords)
+                if header_matches:
+                    capturing = True
+                    continue
+                else:
+                    capturing = False
+            elif capturing and line_str:
+                if line_str.startswith(("-", "*", "•")) or (len(line_str) > 2 and line_str[0].isdigit() and line_str[1] in (".", ")")):
+                    clean = line_str.lstrip("-*•0123456789. )")
+                    if clean:
+                        points.append(clean)
+
+        if points:
+            return points[:5]
+
+        # Fallback snippet if specific bullet extraction produced empty
+        return [f"Execute strategic action across {keywords[0]}."]
+
+    @property
+    def pricing_strategy_points(self) -> list[str]:
+        return self._extract_pillar_points("pricing", "rate", "1.")
+
+    @property
+    def underwriting_tweaks(self) -> list[str]:
+        return self._extract_pillar_points("underwriting", "wording", "coverage", "2.")
+
+    @property
+    def battlecard_updates(self) -> list[str]:
+        return self._extract_pillar_points("battlecard", "outreach", "sales", "displacement", "3.")
+
+    @property
+    def marketing_campaign_ideas(self) -> list[str]:
+        return self._extract_pillar_points("marketing", "campaign", "positioning", "4.")
+

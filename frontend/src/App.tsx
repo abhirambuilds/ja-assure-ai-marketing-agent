@@ -31,12 +31,13 @@ import { ContentStudioView } from './components/content/ContentStudioView';
 import { ReviewCenterView } from './components/review/ReviewCenterView';
 import { CompetitorIntelView } from './components/competitors/CompetitorIntelView';
 import { LeadsView } from './components/leads/LeadsView';
+import { ExecutiveDigestView } from './components/digest/ExecutiveDigestView';
 import { LearningView } from './components/learning/LearningView';
 import { AnalyticsView } from './components/analytics/AnalyticsView';
 import { Modals } from './components/common/Modals';
 
 export function App() {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'studio' | 'review' | 'competitors' | 'leads' | 'learning' | 'analytics'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'studio' | 'review' | 'competitors' | 'leads' | 'digest' | 'learning' | 'analytics'>('dashboard');
   const [selectedBrand, setSelectedBrand] = useState<string>('all');
   
   // Data states
@@ -586,7 +587,16 @@ export function App() {
             />
           )}
 
-          {/* 6. CLOSED-LOOP LEARNING VIEW */}
+          {/* 6. EXECUTIVE DIGEST VIEW */}
+          {activeTab === 'digest' && (
+            <ExecutiveDigestView
+              selectedBrandFilter={selectedBrand}
+              onNavigateToCompetitor={() => setActiveTab('competitors')}
+              onNavigateToLeads={() => setActiveTab('leads')}
+            />
+          )}
+
+          {/* 7. CLOSED-LOOP LEARNING VIEW */}
           {activeTab === 'learning' && (
             <LearningView
               lessons={lessons}
@@ -595,7 +605,7 @@ export function App() {
             />
           )}
 
-          {/* 7. ANALYTICS VIEW */}
+          {/* 8. ANALYTICS VIEW */}
           {activeTab === 'analytics' && (
             <AnalyticsView
               summary={summary}
