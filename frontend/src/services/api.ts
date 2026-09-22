@@ -17,7 +17,12 @@ import type {
   ReviewDecisionItem,
   VoiceGenerationResponse,
   ExecutiveDigest,
-  ExecutiveDigestGenerateRequest
+  ExecutiveDigestGenerateRequest,
+  OutreachMessage,
+  Campaign,
+  ReplyClassification,
+  SuppressionEntry,
+  ProviderStatus
 } from '../types';
 
 import {
@@ -963,6 +968,269 @@ export const api = {
         body: JSON.stringify(payload),
       },
       mockGenerated
+    );
+  },
+
+  // ----------------- Phase 4: Email / Outreach Automation API -----------------
+  generateOutreachCadence: async (leadId: number): Promise<OutreachMessage> => {
+    const fallback: OutreachMessage = {
+      id: Date.now(),
+      lead_id: leadId,
+      channel: 'email',
+      direction: 'outbound',
+      provider: 'mock',
+      subject: `JA Assure: Underwriting Context for Lead #${leadId}`,
+      body: `Hello,\n\nJA Assure provides Lloyd's of London coverholder terms with digital quote-to-bind speed.\n\nBest regards,\nJA Assure`,
+      status: 'pending_approval',
+      sequence_step: 1,
+      sequence_touches: [
+        {
+          step: 1,
+          day: 'Day 0',
+          label: 'Initial Intro & Niche Hook',
+          subject: `JA Assure: Underwriting Context for Lead #${leadId}`,
+          body: `Hello,\n\nJA Assure provides Lloyd's of London coverholder terms with digital quote-to-bind speed.\n\nBest regards,\nJA Assure`,
+        },
+        {
+          step: 2,
+          day: 'Day 4',
+          label: 'Competitive Advantage & Warranty Comparison',
+          subject: `Follow-up: Lloyd's underwriting terms`,
+          body: `Hello,\n\nFollowing up on our earlier note.\n\nBest regards,\nJA Assure`,
+        },
+        {
+          step: 3,
+          day: 'Day 9',
+          label: 'Executive Consultation & Wrap-up',
+          subject: `Final note regarding coverage options`,
+          body: `Hello,\n\nShould your policy renewal considerations change later this year, our Lloyd's coverholder team remains at your disposal.\n\nBest regards,\nJA Assure`,
+        },
+      ],
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    return safeFetch<OutreachMessage>(
+      `${API_BASE_URL}/outreach/${leadId}/generate`,
+      { method: 'POST' },
+      fallback
+    );
+  },
+
+  approveOutreach: async (messageId: number, actor: string = 'human_reviewer', notes?: string): Promise<OutreachMessage> => {
+    const fallback: OutreachMessage = {
+      id: messageId,
+      lead_id: 1,
+      channel: 'email',
+      direction: 'outbound',
+      provider: 'mock',
+      subject: 'Approved Outreach',
+      body: 'Content',
+      status: 'approved',
+      sequence_step: 1,
+      sequence_touches: [],
+      approved_by: actor,
+      approved_at: new Date().toISOString(),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    return safeFetch<OutreachMessage>(
+      `${API_BASE_URL}/outreach/${messageId}/approve`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ actor, notes }),
+      },
+      fallback
+    );
+  },
+
+  sendOutreach: async (messageId: number, dryRun: boolean = false): Promise<{ sent: boolean; provider_message_id?: string; reason?: string }> => {
+    const fallback = {
+      sent: !dryRun,
+      provider_message_id: dryRun ? undefined : `mock-msg-${messageId}`,
+      reason: dryRun ? 'dry-run' : undefined,
+    };
+    return safeFetch<{ sent: boolean; provider_message_id?: string; reason?: string }>(
+      `${API_BASE_URL}/outreach/${messageId}/send`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dry_run: dryRun }),
+      },
+      fallback
+    );
+  },
+
+  getLeadMessages: async (leadId: number): Promise<OutreachMessage[]> => {
+    return safeFetch<OutreachMessage[]>(
+      `${API_BASE_URL}/outreach/${leadId}/messages`,
+      {},
+      []
+    );
+  },
+
+  simulateInboundReply: async (leadId: number, message: string, sender?: string): Promise<ReplyClassification> => {
+    const fallback: ReplyClassification = {
+      intent: 'positive',
+      confidence: 0.85,
+      suggested_action: 'Human follow-up recommended.',
+      lead_status: 'replied',
+      message_id: Date.now(),
+    };
+    return safeFetch<ReplyClassification>(
+      `${API_BASE_URL}/outreach/replies/simulate`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lead_id: leadId, message, sender }),
+      },
+      fallback
+    );
+  },
+
+  listSuppression: async (): Promise<SuppressionEntry[]> => {
+    return safeFetch<SuppressionEntry[]>(
+      `${API_BASE_URL}/outreach/suppression`,
+      {},
+      []
+    );
+  },
+
+  addSuppression: async (email: string, reason: string = 'opted_out', source: string = 'manual'): Promise<SuppressionEntry> => {
+    const fallback: SuppressionEntry = {
+      id: Date.now(),
+      email,
+      normalized_email: email.trim().toLowerCase(),
+      reason,
+      source,
+      created_at: new Date().toISOString(),
+    };
+    return safeFetch<SuppressionEntry>(
+      `${API_BASE_URL}/outreach/suppression`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, reason, source }),
+      },
+      fallback
+    );
+  },
+
+  removeSuppression: async (email: string): Promise<{ email: string; removed: boolean }> => {
+    return safeFetch<{ email: string; removed: boolean }>(
+      `${API_BASE_URL}/outreach/suppression/${encodeURIComponent(email)}`,
+      { method: 'DELETE' },
+      { email, removed: true }
+    );
+  },
+
+  getProviderStatus: async (): Promise<ProviderStatus> => {
+    const fallback: ProviderStatus = {
+      provider: 'mock',
+      mode: 'mock',
+      healthy: true,
+      detail: 'Mock provider active. External email dispatch disabled.',
+      real_email_enabled: false,
+      real_provider_send: false,
+      smtp_configured: false,
+      gmail_oauth_boundary: true,
+    };
+    return safeFetch<ProviderStatus>(
+      `${API_BASE_URL}/outreach/provider-status`,
+      {},
+      fallback
+    );
+  },
+
+  listCampaigns: async (): Promise<Campaign[]> => {
+    return safeFetch<Campaign[]>(
+      `${API_BASE_URL}/campaigns`,
+      {},
+      []
+    );
+  },
+
+  createCampaign: async (payload: Partial<Campaign>): Promise<Campaign> => {
+    const fallback: Campaign = {
+      id: Date.now(),
+      name: payload.name || 'New Campaign',
+      brand: payload.brand || 'jade',
+      target_industry: payload.target_industry || 'jewellery',
+      market: payload.market || 'Singapore',
+      target_count: payload.target_count || 20,
+      minimum_score: payload.minimum_score || 60,
+      status: 'active',
+      is_demo: false,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    return safeFetch<Campaign>(
+      `${API_BASE_URL}/campaigns`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      },
+      fallback
+    );
+  },
+
+  pauseCampaign: async (id: number): Promise<Campaign> => {
+    return safeFetch<Campaign>(
+      `${API_BASE_URL}/campaigns/${id}/pause`,
+      { method: 'POST' },
+      {
+        id,
+        name: 'Campaign',
+        brand: 'jade',
+        target_industry: 'jewellery',
+        market: 'Singapore',
+        target_count: 20,
+        minimum_score: 60,
+        status: 'paused',
+        is_demo: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }
+    );
+  },
+
+  resumeCampaign: async (id: number): Promise<Campaign> => {
+    return safeFetch<Campaign>(
+      `${API_BASE_URL}/campaigns/${id}/resume`,
+      { method: 'POST' },
+      {
+        id,
+        name: 'Campaign',
+        brand: 'jade',
+        target_industry: 'jewellery',
+        market: 'Singapore',
+        target_count: 20,
+        minimum_score: 60,
+        status: 'active',
+        is_demo: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }
+    );
+  },
+
+  getCampaignMetrics: async (id: number): Promise<any> => {
+    return safeFetch<any>(
+      `${API_BASE_URL}/campaigns/${id}/metrics`,
+      {},
+      {
+        campaign_id: id,
+        name: 'Campaign',
+        brand: 'jade',
+        status: 'active',
+        target_count: 20,
+        leads_discovered: 0,
+        messages_drafted: 0,
+        messages_approved: 0,
+        messages_sent: 0,
+        replies_received: 0,
+      }
     );
   }
 };

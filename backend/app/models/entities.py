@@ -328,6 +328,9 @@ class Lead(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, onupdate=utc_now)
 
+    outreach_messages: Mapped[List["OutreachMessage"]] = relationship("OutreachMessage", back_populates="lead", cascade="all, delete-orphan")
+    follow_ups: Mapped[List["FollowUp"]] = relationship("FollowUp", back_populates="lead", cascade="all, delete-orphan")
+
     @property
     def company_name(self) -> str:
         return self.company
@@ -570,4 +573,102 @@ class ExecutiveDigest(Base):
     @property
     def marketing_campaign_ideas(self) -> list[str]:
         return self._extract_pillar_points("marketing", "campaign", "positioning", "4.")
+
+
+class Campaign(Base):
+    __tablename__ = "campaigns"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    brand: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    market: Mapped[str] = mapped_column(String(100), default="Singapore")
+    target_industry: Mapped[str] = mapped_column(String(100), nullable=False)
+    target_count: Mapped[int] = mapped_column(Integer, default=20)
+    minimum_score: Mapped[int] = mapped_column(Integer, default=60)
+    status: Mapped[str] = mapped_column(String(50), default="active", index=True)  # active, paused, completed
+    is_demo: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, onupdate=utc_now)
+
+    messages: Mapped[List["OutreachMessage"]] = relationship("OutreachMessage", back_populates="campaign", cascade="all, delete-orphan")
+    follow_ups: Mapped[List["FollowUp"]] = relationship("FollowUp", back_populates="campaign", cascade="all, delete-orphan")
+
+
+class OutreachMessage(Base):
+    __tablename__ = "outreach_messages"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
+    lead_id: Mapped[int] = mapped_column(Integer, ForeignKey("leads.id", ondelete="CASCADE"), index=True)
+    campaign_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("campaigns.id", ondelete="SET NULL"), nullable=True, index=True)
+    channel: Mapped[str] = mapped_column(String(40), default="email")
+    direction: Mapped[str] = mapped_column(String(20), default="outbound", index=True)  # outbound, inbound
+    provider: Mapped[str] = mapped_column(String(50), default="mock")  # mock, smtp, gmail
+    provider_message_id: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    sender: Mapped[Optional[str]] = mapped_column(String(320), nullable=True)
+    recipient: Mapped[Optional[str]] = mapped_column(String(320), nullable=True, index=True)
+    subject: Mapped[str] = mapped_column(String(300), nullable=False)
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(50), default="pending_approval", index=True)  # draft, pending_approval, approved, sent, failed, replied
+    sequence_step: Mapped[int] = mapped_column(Integer, default=1)  # 1 (Day 0), 2 (Day 4), 3 (Day 9)
+    sequence_touches_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    approved_by: Mapped[Optional[str]] = mapped_column(String(160), nullable=True)
+    approved_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    sent_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    intent: Mapped[Optional[str]] = mapped_column(String(80), nullable=True)
+    intent_confidence: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, onupdate=utc_now)
+
+    lead: Mapped["Lead"] = relationship("Lead", back_populates="outreach_messages")
+    campaign: Mapped[Optional["Campaign"]] = relationship("Campaign", back_populates="messages")
+
+    @property
+    def sequence_touches(self) -> list[dict[str, Any]]:
+        if self.sequence_touches_json:
+            try:
+                import json
+                return json.loads(self.sequence_touches_json)
+            except Exception:
+                return []
+        return []
+
+    @sequence_touches.setter
+    def sequence_touches(self, value: Any):
+        import json
+        if isinstance(value, list):
+            self.sequence_touches_json = json.dumps(value)
+        elif isinstance(value, str):
+            self.sequence_touches_json = value
+        else:
+            self.sequence_touches_json = None
+
+
+class FollowUp(Base):
+    __tablename__ = "follow_ups"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
+    lead_id: Mapped[int] = mapped_column(Integer, ForeignKey("leads.id", ondelete="CASCADE"), index=True)
+    campaign_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("campaigns.id", ondelete="SET NULL"), nullable=True, index=True)
+    sequence_step: Mapped[int] = mapped_column(Integer, default=2)  # Step 2 or 3
+    scheduled_at: Mapped[datetime] = mapped_column(DateTime, index=True, nullable=False)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    draft_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(40), default="scheduled", index=True)  # scheduled, sent, cancelled
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
+
+    lead: Mapped["Lead"] = relationship("Lead", back_populates="follow_ups")
+    campaign: Mapped[Optional["Campaign"]] = relationship("Campaign", back_populates="follow_ups")
+
+
+class SuppressionEntry(Base):
+    __tablename__ = "suppression_list"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
+    email: Mapped[str] = mapped_column(String(320), nullable=False)
+    normalized_email: Mapped[str] = mapped_column(String(320), unique=True, index=True, nullable=False)
+    reason: Mapped[str] = mapped_column(String(80), nullable=False)  # opted_out, bounced, manual
+    source: Mapped[str] = mapped_column(String(160), default="inbound_reply")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
+
 

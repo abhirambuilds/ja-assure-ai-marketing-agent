@@ -10,9 +10,11 @@ import {
   Mail,
   Globe,
   Phone,
-  Zap
+  Zap,
+  Send
 } from 'lucide-react';
 import type { Lead } from '../../types';
+import { OutreachModal } from './OutreachModal';
 
 interface LeadsViewProps {
   leads: Lead[];
@@ -48,6 +50,7 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
   getBrandBadge
 }) => {
   const [expandedLeadId, setExpandedLeadId] = useState<number | null>(null);
+  const [selectedOutreachLead, setSelectedOutreachLead] = useState<Lead | null>(null);
   const isDiscovering = actionLoading === 'discovering';
 
   const toggleExpand = (id: number) => {
@@ -245,6 +248,13 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                     </button>
 
                     <button
+                      onClick={() => setSelectedOutreachLead(lead)}
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 flex items-center gap-1 transition-colors cursor-pointer"
+                    >
+                      <Send className="w-3.5 h-3.5" /> Outreach
+                    </button>
+
+                    <button
                       onClick={() => toggleExpand(lead.id)}
                       className="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 border border-slate-200 cursor-pointer transition-colors"
                       title="Toggle 5-Factor Score & Outreach"
@@ -315,6 +325,13 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                         
                         <div className="flex items-center gap-2">
                           <button
+                            onClick={() => setSelectedOutreachLead(lead)}
+                            className="text-[11px] text-indigo-700 hover:text-indigo-900 flex items-center gap-1 font-semibold cursor-pointer mr-2"
+                          >
+                            <Send className="w-3 h-3" /> Open 3-Touch Sequence & Simulator
+                          </button>
+
+                          <button
                             onClick={() => onGenerateOutreach(lead.id)}
                             disabled={actionLoading === `outreach-${lead.id}`}
                             className="text-[11px] text-blue-700 hover:text-blue-900 flex items-center gap-1 font-semibold cursor-pointer"
@@ -360,6 +377,18 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
           })
         )}
       </div>
+
+      {/* 3-Touch Outreach & Cadence Modal */}
+      {selectedOutreachLead && (
+        <OutreachModal
+          isOpen={Boolean(selectedOutreachLead)}
+          onClose={() => setSelectedOutreachLead(null)}
+          lead={selectedOutreachLead}
+          onLeadUpdated={(updatedLead) => {
+            setSelectedOutreachLead(updatedLead);
+          }}
+        />
+      )}
     </div>
   );
 };

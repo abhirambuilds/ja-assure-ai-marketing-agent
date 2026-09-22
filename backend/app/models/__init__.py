@@ -12,6 +12,10 @@ from app.models.entities import (
     PublishingRecord,
     ReviewDecision,
     ExecutiveDigest,
+    Campaign,
+    OutreachMessage,
+    FollowUp,
+    SuppressionEntry,
 )
 
 __all__ = [
@@ -28,4 +32,8 @@ __all__ = [
     "PublishingRecord",
     "ReviewDecision",
     "ExecutiveDigest",
+    "Campaign",
+    "OutreachMessage",
+    "FollowUp",
+    "SuppressionEntry",
 ]

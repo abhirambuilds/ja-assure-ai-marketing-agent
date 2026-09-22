@@ -35,6 +35,19 @@ class Settings(BaseSettings):
     SEARCH_API_KEY: str = ""
     LEAD_AGENT_MODE: str = "demo"
 
+    # Email & Outreach Automation Settings
+    EMAIL_PROVIDER: str = "mock"
+    REAL_EMAIL_ENABLED: bool = False
+    REAL_PROVIDER_SEND: bool = False
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM_EMAIL: str = ""
+    GMAIL_CLIENT_ID: str = ""
+    GMAIL_CLIENT_SECRET: str = ""
+    GMAIL_REFRESH_TOKEN: str = ""
+
     # Logging
     LOG_LEVEL: str = "INFO"
 

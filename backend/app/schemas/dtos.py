@@ -384,3 +384,124 @@ class ExecutiveDigestResponse(BaseModel):
     marketing_campaign_ideas: List[str] = []
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# ----------------- Phase 4: Email / Outreach DTOs -----------------
+
+class CampaignCreate(BaseModel):
+    name: str
+    brand: str
+    target_industry: str
+    market: str = "Singapore"
+    target_count: int = 20
+    minimum_score: int = 60
+    is_demo: bool = False
+
+
+class CampaignResponse(BaseModel):
+    id: int
+    name: str
+    brand: str
+    target_industry: str
+    market: str
+    target_count: int
+    minimum_score: int
+    status: str
+    is_demo: bool
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class SequenceTouchDTO(BaseModel):
+    step: int
+    day: str
+    label: str
+    subject: str
+    body: str
+
+
+class OutreachMessageResponse(BaseModel):
+    id: int
+    lead_id: int
+    campaign_id: Optional[int] = None
+    channel: str
+    direction: str
+    provider: str
+    provider_message_id: Optional[str] = None
+    sender: Optional[str] = None
+    recipient: Optional[str] = None
+    subject: str
+    body: str
+    status: str
+    sequence_step: int
+    sequence_touches: List[Dict[str, Any]] = []
+    approved_by: Optional[str] = None
+    approved_at: Optional[datetime] = None
+    sent_at: Optional[datetime] = None
+    intent: Optional[str] = None
+    intent_confidence: Optional[float] = None
+    error: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class OutreachApproveRequest(BaseModel):
+    actor: str = "human_reviewer"
+    notes: Optional[str] = None
+
+
+class OutreachSendRequest(BaseModel):
+    dry_run: bool = False
+
+
+class OutreachSendResponse(BaseModel):
+    sent: bool
+    provider_message_id: Optional[str] = None
+    reason: Optional[str] = None
+
+
+class SimulateReplyRequest(BaseModel):
+    lead_id: int
+    message: str
+    sender: Optional[str] = None
+
+
+class SimulateReplyResponse(BaseModel):
+    intent: str
+    confidence: float
+    suggested_action: str
+    lead_status: str
+    message_id: int
+
+
+class SuppressionCreate(BaseModel):
+    email: str
+    reason: str = "opted_out"
+    source: str = "manual"
+
+
+class SuppressionResponse(BaseModel):
+    id: int
+    email: str
+    normalized_email: str
+    reason: str
+    source: str
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ProviderStatusResponse(BaseModel):
+    provider: str
+    mode: str
+    healthy: bool
+    detail: str
+    real_email_enabled: bool
+    real_provider_send: bool
+    smtp_configured: bool
+    gmail_oauth_boundary: bool
+

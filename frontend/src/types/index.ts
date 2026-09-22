@@ -389,3 +389,81 @@ export interface ExecutiveDigestGenerateRequest {
   niche?: string;
   period_days?: number;
 }
+
+// ----------------- Phase 4: Email / Outreach Automation Types -----------------
+
+export interface SequenceTouch {
+  step: number;
+  day: string;
+  label: string;
+  subject: string;
+  body: string;
+}
+
+export interface OutreachMessage {
+  id: number;
+  lead_id: number;
+  campaign_id?: number | null;
+  channel: string;
+  direction: 'outbound' | 'inbound';
+  provider: string;
+  provider_message_id?: string | null;
+  sender?: string | null;
+  recipient?: string | null;
+  subject: string;
+  body: string;
+  status: 'draft' | 'pending_approval' | 'approved' | 'sent' | 'failed' | 'replied';
+  sequence_step: number;
+  sequence_touches: SequenceTouch[];
+  approved_by?: string | null;
+  approved_at?: string | null;
+  sent_at?: string | null;
+  intent?: string | null;
+  intent_confidence?: number | null;
+  error?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Campaign {
+  id: number;
+  name: string;
+  brand: string;
+  target_industry: string;
+  market: string;
+  target_count: number;
+  minimum_score: number;
+  status: string;
+  is_demo: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ReplyClassification {
+  intent: 'unsubscribe' | 'bounce' | 'negative' | 'out_of_office' | 'meeting_request' | 'request_for_information' | 'positive' | 'unknown';
+  confidence: number;
+  suggested_action: string;
+  lead_status: string;
+  message_id: number;
+}
+
+export interface SuppressionEntry {
+  id: number;
+  email: string;
+  normalized_email: string;
+  reason: string;
+  source: string;
+  created_at: string;
+}
+
+export interface ProviderStatus {
+  provider: string;
+  mode: string;
+  healthy: boolean;
+  detail: string;
+  real_email_enabled: boolean;
+  real_provider_send: boolean;
+  smtp_configured: boolean;
+  gmail_oauth_boundary: boolean;
+}
+
