@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import Optional, List
+from typing import Optional, List, Any, Dict
 from sqlalchemy import (
     Column, Integer, String, Text, Float, Boolean, DateTime, ForeignKey, Index
 )
@@ -46,16 +46,35 @@ class Competitor(Base):
     __tablename__ = "competitors"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
-    name: Mapped[str] = mapped_column(String(100), index=True, nullable=False)
-    url: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    name: Mapped[str] = mapped_column(String(200), index=True, nullable=False)
+    url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    domain: Mapped[Optional[str]] = mapped_column(String(200), nullable=True, index=True)
+    brand: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, index=True) # jade, doctorshield, jaguartransit
     category: Mapped[str] = mapped_column(String(100), index=True, nullable=False) # jewellery, medical, transit, etc.
-    title: Mapped[str] = mapped_column(String(255), nullable=False)
-    summary: Mapped[str] = mapped_column(Text, nullable=False)
+    market: Mapped[str] = mapped_column(String(100), default="Singapore")
+    title: Mapped[str] = mapped_column(String(255), default="Competitor Profile")
+    summary: Mapped[str] = mapped_column(Text, default="")
     detected_change: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     actionable_recommendation: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    pricing_summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    coverage_strengths: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    coverage_weaknesses: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    underwriter: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    target_customer_size: Mapped[Optional[str]] = mapped_column(String(100), nullable=True) # SME, Enterprise, HNW, Solo Specialist
+    threat_level: Mapped[str] = mapped_column(String(40), default="medium", index=True) # high, medium, low
+    social_handles_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     relevance: Mapped[float] = mapped_column(Float, default=0.5)
     source: Mapped[str] = mapped_column(String(100), default="public_web")
+    last_monitored_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     collected_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, onupdate=utc_now)
+
+    # Relationships
+    snapshots: Mapped[List["CompetitorSnapshot"]] = relationship("CompetitorSnapshot", back_populates="competitor", cascade="all, delete-orphan")
+    changes: Mapped[List["CompetitorChange"]] = relationship("CompetitorChange", back_populates="competitor", cascade="all, delete-orphan")
+    battlecards: Mapped[List["CompetitorBattlecard"]] = relationship("CompetitorBattlecard", back_populates="competitor", cascade="all, delete-orphan")
 
     @property
     def source_type(self) -> str:
@@ -64,6 +83,214 @@ class Competitor(Base):
         if "live" in (self.source or "").lower() or (self.url and "http" in self.url):
             return "VERIFIED_SOURCE"
         return "DEMO_DATA"
+
+    @property
+    def website_url(self) -> str:
+        return self.url or ""
+
+    @website_url.setter
+    def website_url(self, value: str):
+        self.url = value
+
+    @property
+    def niche(self) -> str:
+        return self.category
+
+    @niche.setter
+    def niche(self, value: str):
+        self.category = value
+
+    @property
+    def social_handles(self) -> dict:
+        if self.social_handles_json:
+            try:
+                import json
+                return json.loads(self.social_handles_json)
+            except Exception:
+                return {}
+        return {}
+
+    @social_handles.setter
+    def social_handles(self, value: Any):
+        import json
+        if isinstance(value, dict):
+            self.social_handles_json = json.dumps(value)
+        elif isinstance(value, str):
+            self.social_handles_json = value
+        else:
+            self.social_handles_json = None
+
+
+class CompetitorSnapshot(Base):
+    __tablename__ = "competitor_snapshots"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
+    competitor_id: Mapped[int] = mapped_column(Integer, ForeignKey("competitors.id", ondelete="CASCADE"), index=True)
+    snapshot_date: Mapped[datetime] = mapped_column(DateTime, default=utc_now, index=True)
+    page_url: Mapped[str] = mapped_column(String(500), nullable=False)
+    page_title: Mapped[Optional[str]] = mapped_column(String(300), nullable=True)
+    content_hash: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    pricing_data_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    coverage_terms_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    public_announcements_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    raw_text_excerpt: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    captured_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
+
+    competitor: Mapped["Competitor"] = relationship("Competitor", back_populates="snapshots")
+
+    @property
+    def pricing_data(self) -> dict:
+        if self.pricing_data_json:
+            try:
+                import json
+                return json.loads(self.pricing_data_json)
+            except Exception:
+                return {}
+        return {}
+
+    @pricing_data.setter
+    def pricing_data(self, value: Any):
+        import json
+        if isinstance(value, dict):
+            self.pricing_data_json = json.dumps(value)
+        elif isinstance(value, str):
+            self.pricing_data_json = value
+        else:
+            self.pricing_data_json = None
+
+    @property
+    def coverage_terms(self) -> dict:
+        if self.coverage_terms_json:
+            try:
+                import json
+                return json.loads(self.coverage_terms_json)
+            except Exception:
+                return {}
+        return {}
+
+    @coverage_terms.setter
+    def coverage_terms(self, value: Any):
+        import json
+        if isinstance(value, dict):
+            self.coverage_terms_json = json.dumps(value)
+        elif isinstance(value, str):
+            self.coverage_terms_json = value
+        else:
+            self.coverage_terms_json = None
+
+    @property
+    def public_announcements(self) -> list:
+        if self.public_announcements_json:
+            try:
+                import json
+                return json.loads(self.public_announcements_json)
+            except Exception:
+                return []
+        return []
+
+    @public_announcements.setter
+    def public_announcements(self, value: Any):
+        import json
+        if isinstance(value, list):
+            self.public_announcements_json = json.dumps(value)
+        elif isinstance(value, str):
+            self.public_announcements_json = value
+        else:
+            self.public_announcements_json = None
+
+
+class CompetitorChange(Base):
+    __tablename__ = "competitor_changes"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
+    competitor_id: Mapped[int] = mapped_column(Integer, ForeignKey("competitors.id", ondelete="CASCADE"), index=True)
+    change_type: Mapped[str] = mapped_column(String(80), index=True) # pricing_change, coverage_update, social_campaign, new_product, expansion
+    severity: Mapped[str] = mapped_column(String(40), default="major", index=True) # critical, major, minor
+    title: Mapped[str] = mapped_column(String(300), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    old_value: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    new_value: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    source_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    detected_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, index=True)
+
+    competitor: Mapped["Competitor"] = relationship("Competitor", back_populates="changes")
+
+
+class CompetitorBattlecard(Base):
+    __tablename__ = "competitor_battlecards"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
+    competitor_id: Mapped[int] = mapped_column(Integer, ForeignKey("competitors.id", ondelete="CASCADE"), index=True)
+    ja_product: Mapped[str] = mapped_column(String(80), index=True) # Jade, Jaguar Transit, DoctorShield
+    why_ja_wins_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    where_competitor_wins_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    objection_handling_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    pricing_comparison: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    sales_pitch_hook: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, onupdate=utc_now)
+
+    competitor: Mapped["Competitor"] = relationship("Competitor", back_populates="battlecards")
+
+    @property
+    def why_ja_wins(self) -> list:
+        if self.why_ja_wins_json:
+            try:
+                import json
+                return json.loads(self.why_ja_wins_json)
+            except Exception:
+                return []
+        return []
+
+    @why_ja_wins.setter
+    def why_ja_wins(self, value: Any):
+        import json
+        if isinstance(value, list):
+            self.why_ja_wins_json = json.dumps(value)
+        elif isinstance(value, str):
+            self.why_ja_wins_json = value
+        else:
+            self.why_ja_wins_json = None
+
+    @property
+    def where_competitor_wins(self) -> list:
+        if self.where_competitor_wins_json:
+            try:
+                import json
+                return json.loads(self.where_competitor_wins_json)
+            except Exception:
+                return []
+        return []
+
+    @where_competitor_wins.setter
+    def where_competitor_wins(self, value: Any):
+        import json
+        if isinstance(value, list):
+            self.where_competitor_wins_json = json.dumps(value)
+        elif isinstance(value, str):
+            self.where_competitor_wins_json = value
+        else:
+            self.where_competitor_wins_json = None
+
+    @property
+    def objection_handling(self) -> dict:
+        if self.objection_handling_json:
+            try:
+                import json
+                return json.loads(self.objection_handling_json)
+            except Exception:
+                return {}
+        return {}
+
+    @objection_handling.setter
+    def objection_handling(self, value: Any):
+        import json
+        if isinstance(value, dict):
+            self.objection_handling_json = json.dumps(value)
+        elif isinstance(value, str):
+            self.objection_handling_json = value
+        else:
+            self.objection_handling_json = None
+
 
 
 class Lead(Base):

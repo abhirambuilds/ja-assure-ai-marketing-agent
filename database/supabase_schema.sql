@@ -124,21 +124,35 @@ CREATE INDEX IF NOT EXISTS ix_content_status_compliance
 CREATE TABLE IF NOT EXISTS competitors (
     id SERIAL PRIMARY KEY,
 
-    name VARCHAR(100) NOT NULL,
-    url VARCHAR(255),
+    name VARCHAR(200) NOT NULL,
+    url VARCHAR(500),
+    domain VARCHAR(200),
+    brand VARCHAR(50),
 
     category VARCHAR(100) NOT NULL,
-    title VARCHAR(255) NOT NULL,
+    market VARCHAR(100) NOT NULL DEFAULT 'Singapore',
+    title VARCHAR(255) NOT NULL DEFAULT 'Competitor Profile',
 
-    summary TEXT NOT NULL,
+    summary TEXT NOT NULL DEFAULT '',
     detected_change TEXT,
     actionable_recommendation TEXT,
 
-    relevance DOUBLE PRECISION NOT NULL DEFAULT 0.5,
+    pricing_summary TEXT,
+    coverage_strengths TEXT,
+    coverage_weaknesses TEXT,
+    underwriter VARCHAR(200),
+    target_customer_size VARCHAR(100),
+    threat_level VARCHAR(40) NOT NULL DEFAULT 'medium',
+    social_handles_json TEXT,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
 
+    relevance DOUBLE PRECISION NOT NULL DEFAULT 0.5,
     source VARCHAR(100) NOT NULL DEFAULT 'public_web',
 
-    collected_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    last_monitored_at TIMESTAMPTZ,
+    collected_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX IF NOT EXISTS ix_competitors_id
@@ -149,6 +163,69 @@ CREATE INDEX IF NOT EXISTS ix_competitors_name
 
 CREATE INDEX IF NOT EXISTS ix_competitors_category
     ON competitors(category);
+
+CREATE INDEX IF NOT EXISTS ix_competitors_brand
+    ON competitors(brand);
+
+CREATE INDEX IF NOT EXISTS ix_competitors_domain
+    ON competitors(domain);
+
+CREATE INDEX IF NOT EXISTS ix_competitors_threat_level
+    ON competitors(threat_level);
+
+-- Competitor Snapshots
+CREATE TABLE IF NOT EXISTS competitor_snapshots (
+    id SERIAL PRIMARY KEY,
+    competitor_id INTEGER NOT NULL REFERENCES competitors(id) ON DELETE CASCADE,
+    snapshot_date TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    page_url VARCHAR(500) NOT NULL,
+    page_title VARCHAR(300),
+    content_hash VARCHAR(64),
+    pricing_data_json TEXT,
+    coverage_terms_json TEXT,
+    public_announcements_json TEXT,
+    raw_text_excerpt TEXT,
+    captured_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS ix_competitor_snapshots_competitor_id ON competitor_snapshots(competitor_id);
+CREATE INDEX IF NOT EXISTS ix_competitor_snapshots_snapshot_date ON competitor_snapshots(snapshot_date);
+CREATE INDEX IF NOT EXISTS ix_competitor_snapshots_content_hash ON competitor_snapshots(content_hash);
+
+-- Competitor Changes
+CREATE TABLE IF NOT EXISTS competitor_changes (
+    id SERIAL PRIMARY KEY,
+    competitor_id INTEGER NOT NULL REFERENCES competitors(id) ON DELETE CASCADE,
+    change_type VARCHAR(80) NOT NULL,
+    severity VARCHAR(40) NOT NULL DEFAULT 'major',
+    title VARCHAR(300) NOT NULL,
+    description TEXT NOT NULL,
+    old_value TEXT,
+    new_value TEXT,
+    source_url VARCHAR(500),
+    detected_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS ix_competitor_changes_competitor_id ON competitor_changes(competitor_id);
+CREATE INDEX IF NOT EXISTS ix_competitor_changes_change_type ON competitor_changes(change_type);
+CREATE INDEX IF NOT EXISTS ix_competitor_changes_severity ON competitor_changes(severity);
+CREATE INDEX IF NOT EXISTS ix_competitor_changes_detected_at ON competitor_changes(detected_at);
+
+-- Competitor Battlecards
+CREATE TABLE IF NOT EXISTS competitor_battlecards (
+    id SERIAL PRIMARY KEY,
+    competitor_id INTEGER NOT NULL REFERENCES competitors(id) ON DELETE CASCADE,
+    ja_product VARCHAR(80) NOT NULL,
+    why_ja_wins_json TEXT,
+    where_competitor_wins_json TEXT,
+    objection_handling_json TEXT,
+    pricing_comparison TEXT,
+    sales_pitch_hook TEXT,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS ix_competitor_battlecards_competitor_id ON competitor_battlecards(competitor_id);
+CREATE INDEX IF NOT EXISTS ix_competitor_battlecards_ja_product ON competitor_battlecards(ja_product);
 
 
 -- ==============================================================================

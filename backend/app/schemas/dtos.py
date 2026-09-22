@@ -82,23 +82,117 @@ class ReviewDecisionResponse(BaseModel):
 class CompetitorBase(BaseModel):
     name: str
     url: Optional[str] = None
-    category: str
-    title: str
-    summary: str
+    domain: Optional[str] = None
+    brand: Optional[str] = None # jade, doctorshield, jaguartransit
+    category: str = "jewellery"
+    market: str = "Singapore"
+    title: str = "Competitor Profile"
+    summary: str = ""
     detected_change: Optional[str] = None
     actionable_recommendation: Optional[str] = None
+    pricing_summary: Optional[str] = None
+    coverage_strengths: Optional[str] = None
+    coverage_weaknesses: Optional[str] = None
+    underwriter: Optional[str] = None
+    target_customer_size: Optional[str] = None
+    threat_level: str = "medium"
+    social_handles_json: Optional[str] = None
+    is_active: bool = True
     relevance: float = 0.5
     source: str = "public_web"
     source_type: Optional[str] = None
 
-class CompetitorCreate(CompetitorBase):
-    pass
+class CompetitorCreate(BaseModel):
+    name: str
+    url: Optional[str] = None
+    domain: Optional[str] = None
+    brand: Optional[str] = None
+    category: Optional[str] = "jewellery"
+    market: Optional[str] = "Singapore"
+    title: Optional[str] = "Competitor Profile"
+    summary: Optional[str] = ""
+    detected_change: Optional[str] = None
+    actionable_recommendation: Optional[str] = None
+    pricing_summary: Optional[str] = None
+    coverage_strengths: Optional[str] = None
+    coverage_weaknesses: Optional[str] = None
+    underwriter: Optional[str] = None
+    target_customer_size: Optional[str] = None
+    threat_level: Optional[str] = "medium"
+    social_handles_json: Optional[str] = None
+    is_active: Optional[bool] = True
+    relevance: Optional[float] = 0.5
+    source: Optional[str] = "public_web"
+    source_type: Optional[str] = None
 
 class CompetitorResponse(CompetitorBase):
     id: int
+    last_monitored_at: Optional[datetime] = None
     collected_at: datetime
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+class CompetitorSnapshotResponse(BaseModel):
+    id: int
+    competitor_id: int
+    snapshot_date: datetime
+    page_url: str
+    page_title: Optional[str] = None
+    content_hash: Optional[str] = None
+    pricing_data: Dict[str, Any] = {}
+    coverage_terms: Dict[str, Any] = {}
+    public_announcements: List[Dict[str, Any]] = []
+    raw_text_excerpt: Optional[str] = None
+    captured_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+class CompetitorChangeResponse(BaseModel):
+    id: int
+    competitor_id: int
+    change_type: str
+    severity: str
+    title: str
+    description: str
+    old_value: Optional[str] = None
+    new_value: Optional[str] = None
+    source_url: Optional[str] = None
+    detected_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+class CompetitorBattlecardResponse(BaseModel):
+    id: int
+    competitor_id: int
+    ja_product: str
+    why_ja_wins: List[str] = []
+    where_competitor_wins: List[str] = []
+    objection_handling: Dict[str, str] = {}
+    pricing_comparison: Optional[str] = None
+    sales_pitch_hook: Optional[str] = None
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+class CompetitorScanResponse(BaseModel):
+    competitor_id: int
+    status: str
+    content_hash: str
+    changes_detected: int
+    changes: List[CompetitorChangeResponse]
+    battlecard_updated: bool
+
+class CompetitiveHookResponse(BaseModel):
+    competitor_id: Optional[int] = None
+    competitor_name: str
+    ja_product: str
+    sales_pitch_hook: str
+    why_ja_wins: List[str]
+    where_competitor_wins: List[str]
+    objection_handling: Dict[str, str]
+    pricing_comparison: str
 
 # ----------------- Lead DTOs -----------------
 class LeadBase(BaseModel):

@@ -1,6 +1,10 @@
 import type {
   ContentQueueItem,
   Competitor,
+  CompetitorSnapshot,
+  CompetitorChange,
+  CompetitorBattlecard,
+  CompetitorScanResult,
   Lead,
   Feedback,
   LessonLearned,
@@ -437,9 +441,205 @@ export const api = {
     );
   },
 
-  // Competitors
-  getCompetitors: async (): Promise<Competitor[]> => {
-    return safeFetch<Competitor[]>(`${API_BASE_URL}/competitors`, undefined, inMemoryCompetitors);
+  // Competitors & Radar
+  getCompetitors: async (params?: { brand?: string; category?: string; niche?: string; threat_level?: string; is_active?: boolean }): Promise<Competitor[]> => {
+    const query = new URLSearchParams();
+    if (params?.brand && params.brand !== 'all') query.append('brand', params.brand);
+    if (params?.category && params.category !== 'all') query.append('category', params.category);
+    if (params?.niche && params.niche !== 'all') query.append('niche', params.niche);
+    if (params?.threat_level && params.threat_level !== 'all') query.append('threat_level', params.threat_level);
+    if (params?.is_active !== undefined) query.append('is_active', String(params.is_active));
+
+    const url = query.toString() ? `${API_BASE_URL}/competitors?${query.toString()}` : `${API_BASE_URL}/competitors`;
+    return safeFetch<Competitor[]>(url, undefined, inMemoryCompetitors);
+  },
+
+  getCompetitor: async (id: number): Promise<Competitor> => {
+    const fallback = inMemoryCompetitors.find(c => c.id === id) || inMemoryCompetitors[0];
+    return safeFetch<Competitor>(`${API_BASE_URL}/competitors/${id}`, undefined, fallback);
+  },
+
+  createCompetitor: async (data: Partial<Competitor>): Promise<Competitor> => {
+    const mockCreated: Competitor = {
+      id: Date.now(),
+      name: data.name || 'New Competitor',
+      url: data.url,
+      domain: data.domain,
+      brand: data.brand || 'jade',
+      category: data.category || 'jewellery',
+      market: data.market || 'Singapore',
+      title: data.title || `${data.name} Profile`,
+      summary: data.summary || '',
+      threat_level: data.threat_level || 'medium',
+      relevance: 0.85,
+      source: 'manual_entry',
+      source_type: 'VERIFIED_SOURCE',
+      is_active: true,
+      collected_at: new Date().toISOString(),
+    };
+    inMemoryCompetitors.unshift(mockCreated);
+    return safeFetch<Competitor>(
+      `${API_BASE_URL}/competitors`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      },
+      mockCreated
+    );
+  },
+
+  scanCompetitor: async (id: number): Promise<CompetitorScanResult> => {
+    const fallback: CompetitorScanResult = {
+      competitor_id: id,
+      status: 'success',
+      content_hash: 'sha256_mock_hash',
+      changes_detected: 1,
+      changes: [
+        {
+          id: Date.now(),
+          competitor_id: id,
+          change_type: 'pricing_change',
+          severity: 'major',
+          title: 'Revised baseline minimum underwriting premium threshold',
+          description: 'Observed shift in advertised policy deductibles and minimum premium guidelines.',
+          old_value: 'SGD 3,500 min',
+          new_value: 'SGD 4,500 min',
+          detected_at: new Date().toISOString(),
+        }
+      ],
+      battlecard_updated: true,
+    };
+    return safeFetch<CompetitorScanResult>(
+      `${API_BASE_URL}/competitors/${id}/scan`,
+      { method: 'POST' },
+      fallback
+    );
+  },
+
+  scanAllCompetitors: async (niche?: string): Promise<{ status: string; scanned_count: number; results: CompetitorScanResult[] }> => {
+    const query = niche ? `?niche=${encodeURIComponent(niche)}` : '';
+    const fallback = {
+      status: 'success',
+      scanned_count: inMemoryCompetitors.length,
+      results: inMemoryCompetitors.map(c => ({
+        competitor_id: c.id,
+        status: 'success',
+        content_hash: 'sha256_mock_hash',
+        changes_detected: 0,
+        changes: [],
+        battlecard_updated: true,
+      })),
+    };
+    return safeFetch<any>(
+      `${API_BASE_URL}/competitors/scan-all${query}`,
+      { method: 'POST' },
+      fallback
+    );
+  },
+
+  getCompetitorSnapshots: async (id: number): Promise<CompetitorSnapshot[]> => {
+    const fallback: CompetitorSnapshot[] = [
+      {
+        id: 1,
+        competitor_id: id,
+        snapshot_date: new Date().toISOString(),
+        page_url: 'https://competitor.com',
+        page_title: 'Competitor Commercial Underwriting Terms',
+        content_hash: 'sha256_mock_hash',
+        pricing_data: {
+          base_rate: '0.45% - 0.75%',
+          minimum_premium: 'SGD 4,500',
+          deductible_terms: 'SGD 2,500 per claim',
+          pricing_summary: 'Premium pricing tier for commercial insureds.',
+        },
+        coverage_terms: {
+          inclusions: ['Commercial stock', 'Transit perils', 'Exhibition risk'],
+          exclusions: ['Unattended vehicle loss', 'Non-UL safes'],
+          target_customer: 'Mid-to-large enterprises',
+        },
+        public_announcements: [
+          {
+            title: 'Updated 2026 Commercial Underwriting Appetites',
+            date: '2026',
+            summary: 'Tightened security warranties for regional fine jewellery vaults.',
+          }
+        ],
+        raw_text_excerpt: 'Commercial insurance solutions and underwriting capacity...',
+        captured_at: new Date().toISOString(),
+      }
+    ];
+    return safeFetch<CompetitorSnapshot[]>(`${API_BASE_URL}/competitors/${id}/snapshots`, undefined, fallback);
+  },
+
+  getCompetitorChanges: async (id?: number): Promise<CompetitorChange[]> => {
+    const url = id ? `${API_BASE_URL}/competitors/${id}/changes` : `${API_BASE_URL}/competitors/changes`;
+    const fallback: CompetitorChange[] = [
+      {
+        id: 1,
+        competitor_id: id || 1,
+        change_type: 'pricing_change',
+        severity: 'major',
+        title: 'Adjusted minimum premium threshold from SGD 3,500 to SGD 4,500',
+        description: 'Underwriter tightened minimum commitment requirements for retail jewellers.',
+        old_value: 'SGD 3,500',
+        new_value: 'SGD 4,500',
+        detected_at: new Date().toISOString(),
+      },
+      {
+        id: 2,
+        competitor_id: id || 2,
+        change_type: 'coverage_update',
+        severity: 'major',
+        title: 'Introduced dual-path GSM alarm security warranty restriction',
+        description: 'New policy endorsements mandate UL-certified central alarm connection.',
+        old_value: 'Single path alarm permitted',
+        new_value: 'Dual-path GSM monitoring mandatory',
+        detected_at: new Date(Date.now() - 86400000).toISOString(),
+      }
+    ];
+    return safeFetch<CompetitorChange[]>(url, undefined, fallback);
+  },
+
+  getCompetitorBattlecard: async (id: number): Promise<CompetitorBattlecard> => {
+    const fallback: CompetitorBattlecard = {
+      id: 1,
+      competitor_id: id,
+      ja_product: 'Jade',
+      why_ja_wins: [
+        '100% digital onboarding & turnaround in <24h vs competitor multi-week paperwork',
+        "Lloyd's of London coverholder terms with S&P A+ rated security",
+        '0% deductible option available for certified UL safe installations',
+        'Transparent unbundled pricing with real-time portfolio management dashboard'
+      ],
+      where_competitor_wins: [
+        'Legacy brand history and balance sheet capacity for mega-cap single-risk vaults'
+      ],
+      objection_handling: {
+        'We have been with competitor for over 10 years': 'Competitor holds brand heritage, but their premium rates and rigid warranties have tightened significantly in 2025/2026. JA Assure offers Lloyd-backed contract certainty with 15-25% lower baseline rates.',
+        'Is JA Assure backed by an A-rated underwriter?': "Yes, our policies are placed through Lloyd's of London syndicates holding S&P A+ / AM Best A ratings.",
+      },
+      pricing_comparison: 'JA Assure delivers 15-25% lower baseline premiums with substantially faster digital policy issuance.',
+      sales_pitch_hook: 'When did your current underwriter last review your unattended display warranties or offer safe-security premium discounts?',
+      updated_at: new Date().toISOString(),
+    };
+    return safeFetch<CompetitorBattlecard>(`${API_BASE_URL}/competitors/${id}/battlecard`, undefined, fallback);
+  },
+
+  regenerateCompetitorBattlecard: async (id: number): Promise<CompetitorBattlecard> => {
+    const fallback = await api.getCompetitorBattlecard(id);
+    return safeFetch<CompetitorBattlecard>(
+      `${API_BASE_URL}/competitors/${id}/battlecard`,
+      { method: 'POST' },
+      fallback
+    );
+  },
+
+  getCompetitiveHook: async (brand?: string, industry?: string): Promise<any> => {
+    const query = new URLSearchParams();
+    if (brand) query.append('brand', brand);
+    if (industry) query.append('industry', industry);
+    return safeFetch<any>(`${API_BASE_URL}/competitors/hook?${query.toString()}`, undefined, null);
   },
 
   scrapeCompetitor: async (url: string, brand?: string): Promise<any> => {

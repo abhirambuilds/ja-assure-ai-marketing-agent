@@ -53,15 +53,89 @@ export interface Competitor {
   id: number;
   name: string;
   url?: string;
+  domain?: string;
+  brand?: string;
   category: string;
+  market?: string;
   title: string;
   summary: string;
   detected_change?: string;
   actionable_recommendation?: string;
+  pricing_summary?: string;
+  coverage_strengths?: string;
+  coverage_weaknesses?: string;
+  underwriter?: string;
+  target_customer_size?: string;
+  threat_level?: 'high' | 'medium' | 'low';
+  is_active?: boolean;
   relevance: number;
   source: string;
   source_type?: string;
+  last_monitored_at?: string;
   collected_at: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface CompetitorSnapshot {
+  id: number;
+  competitor_id: number;
+  snapshot_date: string;
+  page_url: string;
+  page_title?: string;
+  content_hash?: string;
+  pricing_data: {
+    base_rate?: string;
+    minimum_premium?: string;
+    deductible_terms?: string;
+    pricing_summary?: string;
+  };
+  coverage_terms: {
+    inclusions?: string[];
+    exclusions?: string[];
+    target_customer?: string;
+  };
+  public_announcements: Array<{
+    title: string;
+    date: string;
+    summary: string;
+  }>;
+  raw_text_excerpt?: string;
+  captured_at: string;
+}
+
+export interface CompetitorChange {
+  id: number;
+  competitor_id: number;
+  change_type: string;
+  severity: 'critical' | 'major' | 'minor';
+  title: string;
+  description: string;
+  old_value?: string;
+  new_value?: string;
+  source_url?: string;
+  detected_at: string;
+}
+
+export interface CompetitorBattlecard {
+  id: number;
+  competitor_id: number;
+  ja_product: string;
+  why_ja_wins: string[];
+  where_competitor_wins: string[];
+  objection_handling: Record<string, string>;
+  pricing_comparison?: string;
+  sales_pitch_hook?: string;
+  updated_at: string;
+}
+
+export interface CompetitorScanResult {
+  competitor_id: number;
+  status: string;
+  content_hash: string;
+  changes_detected: number;
+  changes: CompetitorChange[];
+  battlecard_updated: boolean;
 }
 
 export interface Lead {

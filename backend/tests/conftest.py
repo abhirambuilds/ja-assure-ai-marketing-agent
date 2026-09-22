@@ -22,6 +22,32 @@ from app.models.entities import Base, ContentQueue, Competitor, LessonLearned, L
 @pytest.fixture(scope="session", autouse=True)
 def initialize_test_database():
     Base.metadata.create_all(bind=engine)
+    with engine.connect() as conn:
+        from sqlalchemy import text
+        existing_cols = {row[1] for row in conn.execute(text("PRAGMA table_info(competitors)")).fetchall()}
+        columns_to_add = [
+            ("domain", "VARCHAR(200)"),
+            ("brand", "VARCHAR(50)"),
+            ("market", "VARCHAR(100) DEFAULT 'Singapore'"),
+            ("pricing_summary", "TEXT"),
+            ("coverage_strengths", "TEXT"),
+            ("coverage_weaknesses", "TEXT"),
+            ("underwriter", "VARCHAR(200)"),
+            ("target_customer_size", "VARCHAR(100)"),
+            ("threat_level", "VARCHAR(40) DEFAULT 'medium'"),
+            ("social_handles_json", "TEXT"),
+            ("is_active", "BOOLEAN DEFAULT 1"),
+            ("last_monitored_at", "DATETIME"),
+            ("created_at", "DATETIME"),
+            ("updated_at", "DATETIME"),
+        ]
+        for col_name, col_type in columns_to_add:
+            if col_name not in existing_cols:
+                try:
+                    conn.execute(text(f"ALTER TABLE competitors ADD COLUMN {col_name} {col_type}"))
+                    conn.commit()
+                except Exception:
+                    pass
     with Session(engine) as session:
         if session.query(ContentQueue).count() == 0:
             item = ContentQueue(
