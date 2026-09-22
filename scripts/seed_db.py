@@ -8,7 +8,9 @@ current_dir = Path(__file__).resolve().parent
 backend_dir = current_dir.parent / "backend"
 sys.path.insert(0, str(backend_dir))
 
+# pyrefly: ignore [missing-import]
 from app.database.session import SessionLocal, engine
+# pyrefly: ignore [missing-import]
 from app.models.entities import (
     Base,
     ContentQueue,

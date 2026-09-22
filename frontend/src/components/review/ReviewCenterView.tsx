@@ -110,13 +110,13 @@ export const ReviewCenterView: React.FC<ReviewCenterViewProps> = ({
   return (
     <div className="space-y-6">
       {/* Top Compliance Control Room Header */}
-      <div className="glass-panel p-5 rounded-2xl border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="bg-white p-5 rounded-xl border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xs">
         <div>
-          <h2 className="text-sm font-bold uppercase tracking-wider text-slate-100 flex items-center gap-2">
-            <ShieldCheck className="w-4 h-4 text-emerald-400" />
+          <h2 className="text-sm font-bold uppercase tracking-wider text-slate-800 flex items-center gap-2">
+            <ShieldCheck className="w-4 h-4 text-emerald-600" />
             Human Governance & Editorial Gate
           </h2>
-          <p className="text-xs text-slate-400 mt-0.5">
+          <p className="text-xs text-slate-500 mt-0.5">
             Strict human approval required for every generated asset. Rejections synthesize permanent prompt guardrails.
           </p>
         </div>
@@ -125,10 +125,10 @@ export const ReviewCenterView: React.FC<ReviewCenterViewProps> = ({
         <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={() => setReviewFilter('all')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-mono font-medium transition-all cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
               reviewFilter === 'all' 
-                ? 'bg-slate-800 text-slate-100 border border-slate-700 shadow-sm' 
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'bg-slate-200 text-slate-900 font-bold' 
+                : 'text-slate-600 hover:text-slate-900 bg-slate-50'
             }`}
           >
             All Items ({queue.length})
@@ -136,37 +136,37 @@ export const ReviewCenterView: React.FC<ReviewCenterViewProps> = ({
 
           <button
             onClick={() => setReviewFilter('pending')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
               reviewFilter === 'pending' 
-                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm shadow-amber-500/10' 
-                : 'text-slate-400 hover:text-amber-300'
+                ? 'bg-amber-100 text-amber-900 border border-amber-300' 
+                : 'text-slate-600 hover:text-amber-800 bg-slate-50'
             }`}
           >
-            <Clock className="w-3.5 h-3.5 text-amber-400" />
+            <Clock className="w-3.5 h-3.5 text-amber-600" />
             Pending Review ({pendingCount})
           </button>
 
           <button
             onClick={() => setReviewFilter('approved')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
               reviewFilter === 'approved' 
-                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm shadow-emerald-500/10' 
-                : 'text-slate-400 hover:text-emerald-300'
+                ? 'bg-emerald-100 text-emerald-900 border border-emerald-300' 
+                : 'text-slate-600 hover:text-emerald-800 bg-slate-50'
             }`}
           >
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
             Approved ({approvedCount})
           </button>
 
           <button
             onClick={() => setReviewFilter('rejected')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
               reviewFilter === 'rejected' 
-                ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 shadow-sm shadow-rose-500/10' 
-                : 'text-slate-400 hover:text-rose-300'
+                ? 'bg-rose-100 text-rose-900 border border-rose-300' 
+                : 'text-slate-600 hover:text-rose-800 bg-slate-50'
             }`}
           >
-            <XCircle className="w-3.5 h-3.5 text-rose-400" />
+            <XCircle className="w-3.5 h-3.5 text-rose-600" />
             Rejected ({rejectedCount})
           </button>
         </div>
@@ -175,9 +175,9 @@ export const ReviewCenterView: React.FC<ReviewCenterViewProps> = ({
       {/* Queue List Cards */}
       <div className="space-y-4">
         {filteredQueue.length === 0 ? (
-          <div className="glass-panel p-16 rounded-2xl border border-slate-800 text-center space-y-2">
-            <CheckCircle2 className="w-8 h-8 text-slate-600 mx-auto" />
-            <h4 className="text-sm font-semibold text-slate-200">No content in this review filter</h4>
+          <div className="bg-white p-16 rounded-xl border border-slate-200 text-center space-y-2 shadow-2xs">
+            <CheckCircle2 className="w-8 h-8 text-emerald-600 mx-auto" />
+            <h4 className="text-sm font-semibold text-slate-800">No content in this review filter</h4>
             <p className="text-xs text-slate-500 max-w-sm mx-auto">
               {reviewFilter === 'pending'
                 ? 'All generated marketing items have been evaluated. Excellent governance compliance!'
@@ -217,38 +217,38 @@ export const ReviewCenterView: React.FC<ReviewCenterViewProps> = ({
             return (
               <div 
                 key={item.id} 
-                className={`glass-panel p-6 rounded-2xl border transition-all space-y-4 ${
-                  isPending ? 'border-amber-500/30 hover:border-amber-500/50 bg-[#0e1628]/70' :
-                  isApproved ? 'border-emerald-500/20 hover:border-emerald-500/40' :
-                  'border-rose-500/20 hover:border-rose-500/40'
+                className={`bg-white p-6 rounded-xl border transition-all space-y-4 shadow-2xs ${
+                  isPending ? 'border-amber-300' :
+                  isApproved ? 'border-emerald-200' :
+                  'border-rose-200'
                 }`}
               >
                 {/* Item Meta Header */}
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-3">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
                   <div className="flex items-center gap-2 flex-wrap">
                     {getBrandBadge(item.brand)}
-                    <span className="px-2.5 py-0.5 rounded text-xs bg-slate-800/90 text-slate-300 capitalize font-mono border border-slate-700">
+                    <span className="px-2.5 py-0.5 rounded text-xs bg-slate-100 text-slate-700 capitalize font-medium">
                       {item.platform}
                     </span>
-                    <span className="px-2 py-0.5 rounded text-xs bg-slate-800/60 text-slate-400 uppercase font-mono">
+                    <span className="px-2 py-0.5 rounded text-xs bg-slate-100 text-slate-500 uppercase">
                       Var {item.variation} • {item.language}
                     </span>
-                    <span className="text-[11px] font-mono text-slate-500">#{item.id}</span>
+                    <span className="text-[11px] text-slate-400">#{item.id}</span>
                   </div>
 
                   <div className="flex items-center gap-3">
-                    <span className="text-xs font-mono text-slate-400">Compliance Audit:</span>
-                    <span className={`text-xs font-bold font-mono px-2.5 py-0.5 rounded-full ${
-                      item.compliance_score >= 85 ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' :
-                      item.compliance_score >= 60 ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' :
-                      'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                    <span className="text-xs text-slate-500 font-medium">Compliance Audit:</span>
+                    <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
+                      item.compliance_score >= 85 ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' :
+                      item.compliance_score >= 60 ? 'bg-amber-50 text-amber-800 border border-amber-200' :
+                      'bg-rose-50 text-rose-800 border border-rose-200'
                     }`}>
                       {item.compliance_score}%
                     </span>
-                    <span className={`text-[10px] font-bold font-mono px-2 py-0.5 rounded-md uppercase tracking-wider ${
-                      isPass ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' :
-                      isBlocked ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40' :
-                      'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
+                      isPass ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' :
+                      isBlocked ? 'bg-rose-50 text-rose-800 border border-rose-200' :
+                      'bg-amber-50 text-amber-800 border border-amber-200'
                     }`}>
                       {rawStatus}
                     </span>
@@ -258,38 +258,38 @@ export const ReviewCenterView: React.FC<ReviewCenterViewProps> = ({
 
                 {/* Content Raw & Topic */}
                 <div className="space-y-2">
-                  <h4 className="font-bold text-sm text-slate-100">{item.topic}</h4>
-                  <p className="text-xs text-slate-300 whitespace-pre-line leading-relaxed bg-[#0a0f1d] p-4 rounded-xl border border-slate-800/80 font-sans selection:bg-amber-500 selection:text-slate-950">
+                  <h4 className="font-bold text-sm text-slate-900">{item.topic}</h4>
+                  <p className="text-xs text-slate-800 whitespace-pre-line leading-relaxed bg-slate-50 p-4 rounded-lg border border-slate-200 font-sans">
                     {item.content_raw}
                   </p>
                 </div>
 
                 {/* Compliance Audit Inspector Card */}
-                <div className="rounded-xl border border-slate-800/80 bg-slate-900/40 p-4 space-y-3">
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 space-y-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs font-bold text-slate-200 flex items-center gap-1.5 font-mono">
-                        <Scale className="w-3.5 h-3.5 text-cyan-400" />
+                      <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                        <Scale className="w-3.5 h-3.5 text-blue-700" />
                         Regulatory Governance Audit
                       </span>
-                      <span className={`text-[10px] font-bold font-mono px-2 py-0.5 rounded-full uppercase tracking-wider ${
-                        isPass ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' :
-                        isBlocked ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40' :
-                        'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                        isPass ? 'bg-emerald-100 text-emerald-900 border border-emerald-300' :
+                        isBlocked ? 'bg-rose-100 text-rose-900 border border-rose-300' :
+                        'bg-amber-100 text-amber-900 border border-amber-300'
                       }`}>
                         {rawStatus}
                       </span>
-                      <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700/80 flex items-center gap-1">
-                        <Globe className="w-3 h-3 text-indigo-400" />
+                      <span className="text-[11px] px-2 py-0.5 rounded bg-white text-slate-700 border border-slate-200 flex items-center gap-1">
+                        <Globe className="w-3 h-3 text-blue-600" />
                         {parsedMeta?.compliance_jurisdiction || 'SG / MAS'}
                       </span>
                       {parsedMeta?.compliance_product && (
-                        <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-800/80 text-slate-400 border border-slate-700/50">
+                        <span className="text-[11px] px-2 py-0.5 rounded bg-white text-slate-600 border border-slate-200">
                           {parsedMeta.compliance_product}
                         </span>
                       )}
                       {parsedMeta?.compliance_disclaimer_status && (
-                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800/60 text-slate-400">
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-white text-slate-500 border border-slate-200">
                           Disclaimer: {parsedMeta.compliance_disclaimer_status}
                         </span>
                       )}
@@ -298,7 +298,7 @@ export const ReviewCenterView: React.FC<ReviewCenterViewProps> = ({
                     <button
                       type="button"
                       onClick={() => toggleAudit(item.id)}
-                      className="text-xs font-mono text-cyan-400 hover:text-cyan-300 flex items-center gap-1 cursor-pointer transition-colors"
+                      className="text-xs text-blue-700 hover:text-blue-900 font-semibold flex items-center gap-1 cursor-pointer transition-colors"
                     >
                       {expandedAudits[item.id] ? (
                         <>Hide Audit Breakdown <ChevronUp className="w-3.5 h-3.5" /></>
@@ -314,13 +314,13 @@ export const ReviewCenterView: React.FC<ReviewCenterViewProps> = ({
 
                   {/* Collapsed Snippet if violations exist */}
                   {!expandedAudits[item.id] && allViolations.length > 0 && (
-                    <div className="flex items-center gap-2 text-xs text-rose-300 bg-rose-950/30 px-3 py-1.5 rounded-lg border border-rose-800/40">
-                      <AlertTriangle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                    <div className="flex items-center gap-2 text-xs text-rose-800 bg-rose-50 px-3 py-1.5 rounded-lg border border-rose-200">
+                      <AlertTriangle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
                       <span className="truncate">
                         <strong>{allViolations[0].rule_id}</strong>: {allViolations[0].reason || allViolations[0].message}
                       </span>
                       {allViolations.length > 1 && (
-                        <span className="text-[10px] bg-rose-900/60 px-1.5 py-0.5 rounded text-rose-200 shrink-0 font-mono">
+                        <span className="text-[10px] bg-rose-200 px-1.5 py-0.5 rounded text-rose-900 shrink-0 font-bold">
                           +{allViolations.length - 1} more
                         </span>
                       )}
@@ -329,56 +329,56 @@ export const ReviewCenterView: React.FC<ReviewCenterViewProps> = ({
 
                   {/* Expanded Breakdown */}
                   {expandedAudits[item.id] && (
-                    <div className="space-y-3 pt-2 border-t border-slate-800/60">
+                    <div className="space-y-3 pt-2 border-t border-slate-200">
                       {allViolations.length === 0 ? (
-                        <div className="text-xs text-emerald-300 bg-emerald-950/20 p-3 rounded-lg border border-emerald-800/30 flex items-center gap-2">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                        <div className="text-xs text-emerald-800 bg-emerald-50 p-3 rounded-lg border border-emerald-200 flex items-center gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                           <span>Zero regulatory violations detected across 12 statutory rule categories. Ready for human review sign-off.</span>
                         </div>
                       ) : (
                         <div className="space-y-2">
-                          <div className="text-[11px] font-mono uppercase tracking-wider text-slate-400 font-semibold">
+                          <div className="text-[11px] uppercase tracking-wider text-slate-600 font-bold">
                             Detected Regulatory Violations & Remediations ({allViolations.length})
                           </div>
                           {allViolations.map((v, vIdx) => {
                             const sev = (v.severity || 'MEDIUM').toUpperCase();
                             const sevBadgeStyle = 
-                              sev === 'CRITICAL' ? 'bg-rose-500/20 text-rose-300 border-rose-500/50 font-bold' :
-                              sev === 'HIGH' ? 'bg-orange-500/20 text-orange-300 border-orange-500/50 font-bold' :
-                              sev === 'MEDIUM' ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' :
-                              'bg-blue-500/20 text-blue-300 border-blue-500/40';
+                              sev === 'CRITICAL' ? 'bg-rose-100 text-rose-900 border-rose-300 font-bold' :
+                              sev === 'HIGH' ? 'bg-orange-100 text-orange-900 border-orange-300 font-bold' :
+                              sev === 'MEDIUM' ? 'bg-amber-100 text-amber-900 border-amber-300' :
+                              'bg-blue-100 text-blue-900 border-blue-300';
 
                             return (
-                              <div key={vIdx} className="p-3 rounded-xl bg-[#090d19] border border-slate-800 space-y-1.5 text-xs">
+                              <div key={vIdx} className="p-3 rounded-lg bg-white border border-slate-200 space-y-1.5 text-xs shadow-2xs">
                                 <div className="flex items-center justify-between gap-2 flex-wrap">
                                   <div className="flex items-center gap-2">
-                                    <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${sevBadgeStyle}`}>
+                                    <span className={`text-[10px] px-2 py-0.5 rounded-full border ${sevBadgeStyle}`}>
                                       {sev}
                                     </span>
-                                    <span className="font-mono font-bold text-slate-200">{v.rule_id}</span>
+                                    <span className="font-bold text-slate-800">{v.rule_id}</span>
                                     {v.category && (
-                                      <span className="text-[10px] text-slate-400 capitalize">({v.category.replace(/_/g, ' ')})</span>
+                                      <span className="text-[10px] text-slate-500 capitalize">({v.category.replace(/_/g, ' ')})</span>
                                     )}
                                   </div>
                                 </div>
 
                                 {(v.matched_text || v.flagged_phrase) && (
-                                  <div className="text-[11px] font-mono text-rose-300 bg-rose-950/30 px-2.5 py-1 rounded border border-rose-900/30">
-                                    <span className="text-slate-400">Flagged phrase: </span>
-                                    <span className="text-rose-200 font-semibold underline decoration-rose-500">
+                                  <div className="text-[11px] text-rose-800 bg-rose-50 px-2.5 py-1 rounded border border-rose-200">
+                                    <span className="text-slate-500">Flagged phrase: </span>
+                                    <span className="text-rose-900 font-semibold underline decoration-rose-500">
                                       "{v.matched_text || v.flagged_phrase}"
                                     </span>
                                   </div>
                                 )}
 
-                                <div className="text-slate-300 text-xs">
-                                  <span className="text-slate-400 font-medium">Reason: </span>
+                                <div className="text-slate-700 text-xs">
+                                  <span className="text-slate-500 font-medium">Reason: </span>
                                   {v.reason || v.message}
                                 </div>
 
                                 {(v.recommendation || v.suggested_fix) && (
-                                  <div className="text-emerald-300 text-xs bg-emerald-950/20 p-2 rounded border border-emerald-900/30">
-                                    <span className="text-emerald-400 font-bold">Suggested Remediation: </span>
+                                  <div className="text-emerald-900 text-xs bg-emerald-50 p-2 rounded border border-emerald-200">
+                                    <span className="text-emerald-700 font-bold">Suggested Remediation: </span>
                                     {v.recommendation || v.suggested_fix}
                                   </div>
                                 )}
@@ -390,18 +390,18 @@ export const ReviewCenterView: React.FC<ReviewCenterViewProps> = ({
 
                       {/* Claims Analyzed Section */}
                       {parsedMeta?.claims_analyzed && parsedMeta.claims_analyzed.length > 0 && (
-                        <div className="pt-2 border-t border-slate-800/50 space-y-1.5">
-                          <div className="text-[11px] font-mono uppercase tracking-wider text-slate-400 font-semibold">
+                        <div className="pt-2 border-t border-slate-200 space-y-1.5">
+                          <div className="text-[11px] uppercase tracking-wider text-slate-600 font-bold">
                             Claims Analyzed ({parsedMeta.claims_analyzed.length})
                           </div>
                           <div className="flex flex-wrap gap-2">
                             {parsedMeta.claims_analyzed.map((claim, cIdx) => (
-                              <div key={cIdx} className="text-[11px] font-mono px-2 py-1 rounded bg-slate-800/80 border border-slate-700/60 text-slate-300 flex items-center gap-1.5">
+                              <div key={cIdx} className="text-[11px] px-2 py-1 rounded bg-white border border-slate-200 text-slate-800 flex items-center gap-1.5 shadow-2xs">
                                 <span className={`w-1.5 h-1.5 rounded-full ${
-                                  claim.risk_level === 'high' ? 'bg-rose-400' : claim.risk_level === 'medium' ? 'bg-amber-400' : 'bg-emerald-400'
+                                  claim.risk_level === 'high' ? 'bg-rose-500' : claim.risk_level === 'medium' ? 'bg-amber-500' : 'bg-emerald-500'
                                 }`} />
                                 <span className="max-w-xs truncate">"{claim.claim_text}"</span>
-                                <span className="text-[9px] uppercase px-1 rounded bg-slate-900 text-slate-400">{claim.claim_type}</span>
+                                <span className="text-[9px] uppercase px-1 rounded bg-slate-100 text-slate-600">{claim.claim_type}</span>
                               </div>
                             ))}
                           </div>
@@ -413,28 +413,28 @@ export const ReviewCenterView: React.FC<ReviewCenterViewProps> = ({
 
                 {/* Audit / Reviewer Notes if present */}
                 {item.notes && (
-                  <div className="text-xs text-slate-300 bg-slate-900/60 p-3 rounded-xl border border-slate-800 flex items-start gap-2">
-                    <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                  <div className="text-xs text-slate-800 bg-amber-50 p-3 rounded-lg border border-amber-200 flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                     <div>
-                      <span className="font-bold text-slate-200">Reviewer Guidance Note:</span>
-                      <p className="text-slate-400 mt-0.5">{item.notes}</p>
+                      <span className="font-bold text-amber-900">Reviewer Guidance Note:</span>
+                      <p className="text-amber-800 mt-0.5">{item.notes}</p>
                     </div>
                   </div>
                 )}
 
                 {/* Actions Toolbar */}
-                <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-800/80">
+                <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-100">
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-mono text-slate-500">
+                    <span className="text-[10px] text-slate-400">
                       Staged {new Date(item.created_at).toLocaleString()}
                     </span>
                     <button
                       type="button"
                       onClick={() => handleOpenHistory(item)}
-                      className="px-2.5 py-1 rounded-lg text-[11px] font-mono text-slate-400 hover:text-cyan-300 hover:bg-slate-800/80 border border-slate-700/60 flex items-center gap-1.5 transition-colors cursor-pointer"
+                      className="px-2.5 py-1 rounded-lg text-[11px] text-slate-600 hover:text-blue-700 hover:bg-slate-100 border border-slate-200 flex items-center gap-1.5 transition-colors cursor-pointer"
                       title="View Human Governance Decision Audit Trail"
                     >
-                      <History className="w-3.5 h-3.5 text-cyan-400" />
+                      <History className="w-3.5 h-3.5 text-blue-600" />
                       Audit Trail
                     </button>
                   </div>
@@ -444,62 +444,62 @@ export const ReviewCenterView: React.FC<ReviewCenterViewProps> = ({
                     {isApproved && (
                       <button
                         onClick={() => onOpenScheduleModal(item)}
-                        className="px-4 py-2 rounded-xl text-xs font-bold bg-cyan-600 hover:bg-cyan-500 text-white flex items-center gap-1.5 shadow-md shadow-cyan-600/20 transition-all cursor-pointer"
+                        className="px-4 py-2 rounded-lg text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
                       >
                         <Calendar className="w-3.5 h-3.5" />
                         {item.status === 'scheduled' ? 'Reschedule Preview' : 'Schedule Dispatch Preview'}
                       </button>
                     )}
 
-                    {/* Auto Compliance Rewrite - available for pending items with compliance issues */}
+                    {/* Auto Compliance Rewrite */}
                     {isPending && (item.compliance_score < 85 || isBlocked || allViolations.length > 0) && (
                       <button
                         onClick={() => onRewrite(item.id)}
                         disabled={actionLoading === `rewrite-${item.id}`}
-                        className="px-3.5 py-1.5 rounded-xl text-xs font-medium bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 border border-indigo-500/40 flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm shadow-indigo-600/10"
+                        className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 flex items-center gap-1.5 transition-colors cursor-pointer"
                       >
-                        <Wand2 className="w-3.5 h-3.5 text-indigo-400" />
-                        {actionLoading === `rewrite-${item.id}` ? 'Rewriting & Re-verifying...' : 'AI Rewrite Fix'}
+                        <Wand2 className="w-3.5 h-3.5 text-indigo-600" />
+                        {actionLoading === `rewrite-${item.id}` ? 'Rewriting...' : 'AI Rewrite Fix'}
                       </button>
                     )}
 
-                    {/* Edit in place — only legal on items still awaiting human review (server-enforced) */}
+                    {/* Edit in place */}
                     {isPending && (
                       <button
                         onClick={() => onOpenEdit(item)}
-                        className="px-3 py-1.5 rounded-xl text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 flex items-center gap-1.5 transition-colors cursor-pointer"
+                        className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 flex items-center gap-1.5 transition-colors cursor-pointer"
                       >
                         <FileText className="w-3.5 h-3.5" /> Edit Copy
                       </button>
                     )}
 
-                    {/* Regenerate with lessons (for pending or rejected items) */}
+                    {/* Regenerate */}
                     {(isPending || isRejected) && (
                       <button
                         onClick={() => onRegenerate(item.id)}
                         disabled={actionLoading === `regen-${item.id}`}
-                        className="px-3 py-1.5 rounded-xl text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 flex items-center gap-1.5 transition-colors cursor-pointer"
+                        className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 flex items-center gap-1.5 transition-colors cursor-pointer"
                       >
                         <RefreshCw className="w-3.5 h-3.5" /> Regenerate
                       </button>
                     )}
 
-                    {/* Reject & Learn - DISTINCT ROSE COLOR */}
+                    {/* Reject & Learn */}
                     {isPending && (
                       <button
                         onClick={() => onOpenReject(item)}
-                        className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white border border-rose-500/40 flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                        className="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-300 flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer"
                       >
                         <X className="w-3.5 h-3.5" /> Reject & Learn
                       </button>
                     )}
 
-                    {/* Approve - DISTINCT EMERALD COLOR */}
+                    {/* Approve */}
                     {isPending && (
                       <button
                         onClick={() => onApprove(item.id)}
                         disabled={actionLoading === `approve-${item.id}`}
-                        className="px-4 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-1.5 shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
+                        className="px-4 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
                       >
                         <Check className="w-3.5 h-3.5" /> Approve
                       </button>
@@ -514,28 +514,28 @@ export const ReviewCenterView: React.FC<ReviewCenterViewProps> = ({
 
       {/* HITL Audit History Modal */}
       {historyModalItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in">
-          <div className="bg-[#0b101b] border border-slate-700 w-full max-w-2xl rounded-2xl p-6 shadow-2xl space-y-5 max-h-[85vh] flex flex-col">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-800 shrink-0">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fade-in">
+          <div className="bg-white border border-slate-200 w-full max-w-2xl rounded-xl p-6 shadow-2xl space-y-5 max-h-[85vh] flex flex-col text-slate-900">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100 shrink-0">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center">
-                  <History className="w-4 h-4 text-cyan-400" />
+                <div className="w-8 h-8 rounded-lg bg-blue-50 border border-blue-200 flex items-center justify-center">
+                  <History className="w-4 h-4 text-blue-700" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
+                  <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
                     HITL Governance Audit Trail
-                    <span className="text-xs font-mono px-2 py-0.5 rounded bg-slate-800 text-cyan-300">
+                    <span className="text-xs px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-mono">
                       Item #{historyModalItem.id}
                     </span>
                   </h3>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-slate-500">
                     Immutable log of reviewer decisions, status transitions, and copy alterations.
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => setHistoryModalItem(null)}
-                className="text-slate-400 hover:text-slate-200 p-1.5 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
+                className="text-slate-400 hover:text-slate-700 p-1.5 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -543,78 +543,78 @@ export const ReviewCenterView: React.FC<ReviewCenterViewProps> = ({
 
             <div className="overflow-y-auto space-y-4 pr-1 flex-1">
               {historyLoading ? (
-                <div className="py-12 text-center text-slate-400 text-xs font-mono flex items-center justify-center gap-2">
-                  <RefreshCw className="w-4 h-4 animate-spin text-cyan-400" />
+                <div className="py-12 text-center text-slate-500 text-xs flex items-center justify-center gap-2">
+                  <RefreshCw className="w-4 h-4 animate-spin text-blue-600" />
                   Fetching governance audit log...
                 </div>
               ) : historyItems.length === 0 ? (
-                <div className="py-12 text-center text-slate-400 text-xs">
-                  <Clock className="w-8 h-8 text-slate-600 mx-auto mb-2" />
+                <div className="py-12 text-center text-slate-500 text-xs">
+                  <Clock className="w-8 h-8 text-slate-400 mx-auto mb-2" />
                   No review decisions recorded yet. Content is currently in initial staging.
                 </div>
               ) : (
-                <div className="relative pl-6 border-l-2 border-slate-800 space-y-6">
+                <div className="relative pl-6 border-l-2 border-slate-200 space-y-6">
                   {historyItems.map((dec, idx) => {
                     const decisionColor =
-                      dec.decision === 'approve' ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' :
-                      dec.decision === 'reject' ? 'bg-rose-500/20 text-rose-300 border-rose-500/40' :
-                      dec.decision === 'edit' ? 'bg-sky-500/20 text-sky-300 border-sky-500/40' :
-                      dec.decision === 'rewrite' ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40' :
-                      'bg-purple-500/20 text-purple-300 border-purple-500/40';
+                      dec.decision === 'approve' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
+                      dec.decision === 'reject' ? 'bg-rose-50 text-rose-800 border-rose-200' :
+                      dec.decision === 'edit' ? 'bg-blue-50 text-blue-800 border-blue-200' :
+                      dec.decision === 'rewrite' ? 'bg-indigo-50 text-indigo-800 border-indigo-200' :
+                      'bg-purple-50 text-purple-800 border-purple-200';
 
                     return (
                       <div key={dec.id || idx} className="relative group">
-                        <div className="absolute -left-[31px] top-1 w-3.5 h-3.5 rounded-full bg-[#0b101b] border-2 border-cyan-400 group-hover:scale-110 transition-transform" />
+                        <div className="absolute -left-[31px] top-1 w-3.5 h-3.5 rounded-full bg-white border-2 border-blue-600 transition-transform" />
 
-                        <div className="p-4 rounded-xl bg-slate-900/70 border border-slate-800 space-y-2.5">
+                        <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2.5">
                           <div className="flex items-center justify-between gap-2 flex-wrap text-xs">
                             <div className="flex items-center gap-2">
-                              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold font-mono uppercase border ${decisionColor}`}>
+                              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase border ${decisionColor}`}>
                                 {dec.decision}
                               </span>
-                              <span className="font-mono text-slate-300 flex items-center gap-1">
-                                <UserCheck className="w-3.5 h-3.5 text-slate-400" />
+                              <span className="text-slate-700 flex items-center gap-1 font-medium">
+                                <UserCheck className="w-3.5 h-3.5 text-slate-500" />
                                 {dec.reviewer || 'compliance_officer'}
                               </span>
                             </div>
-                            <span className="text-[10px] font-mono text-slate-500">
+                            <span className="text-[10px] text-slate-400">
                               {new Date(dec.created_at).toLocaleString()}
                             </span>
                           </div>
 
-                          <div className="text-xs font-mono text-slate-400 flex items-center gap-1.5 flex-wrap">
+                          <div className="text-xs text-slate-600 flex items-center gap-1.5 flex-wrap">
                             <span>Status transition:</span>
-                            <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">{dec.previous_status}</span>
-                            <ArrowRight className="w-3 h-3 text-slate-500" />
-                            <span className="px-1.5 py-0.5 rounded bg-slate-800 text-emerald-300">{dec.new_status}</span>
+                            <span className="px-1.5 py-0.5 rounded bg-white border border-slate-200 text-slate-700">{dec.previous_status}</span>
+                            <ArrowRight className="w-3 h-3 text-slate-400" />
+                            <span className="px-1.5 py-0.5 rounded bg-white border border-slate-200 text-emerald-700 font-semibold">{dec.new_status}</span>
                             {dec.compliance_score !== null && dec.compliance_score !== undefined && (
-                              <span className="ml-auto text-[11px] font-mono text-cyan-300 bg-cyan-950/40 border border-cyan-800/40 px-2 py-0.5 rounded">
+                              <span className="ml-auto text-[11px] text-blue-800 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded font-semibold">
                                 Score: {dec.compliance_score.toFixed(1)}/100
                               </span>
                             )}
                           </div>
 
                           {(dec.reason_tag || dec.notes) && (
-                            <div className="text-xs text-slate-300 bg-slate-950/50 p-2.5 rounded-lg border border-slate-800/80 space-y-1">
+                            <div className="text-xs text-slate-800 bg-white p-2.5 rounded-lg border border-slate-200 space-y-1">
                               {dec.reason_tag && (
-                                <div className="font-mono text-[11px] text-amber-300 font-semibold">
+                                <div className="text-[11px] text-amber-800 font-semibold">
                                   Reason: {dec.reason_tag}
                                 </div>
                               )}
-                              {dec.notes && <p className="text-slate-400 text-xs">{dec.notes}</p>}
+                              {dec.notes && <p className="text-slate-600 text-xs">{dec.notes}</p>}
                             </div>
                           )}
 
                           {dec.edited_content && dec.edited_content !== dec.original_content && (
                             <div className="text-xs space-y-1.5 pt-1">
                               {dec.original_content && (
-                                <div className="p-2 rounded bg-rose-950/20 border border-rose-900/30 text-[11px] text-rose-300 line-clamp-2">
-                                  <span className="text-slate-400 block font-mono text-[10px] uppercase">Prior Version:</span>
+                                <div className="p-2 rounded bg-rose-50 border border-rose-200 text-[11px] text-rose-800 line-clamp-2">
+                                  <span className="text-slate-500 block text-[10px] uppercase font-semibold">Prior Version:</span>
                                   "{dec.original_content}"
                                 </div>
                               )}
-                              <div className="p-2 rounded bg-emerald-950/20 border border-emerald-900/30 text-[11px] text-emerald-300 line-clamp-2">
-                                <span className="text-slate-400 block font-mono text-[10px] uppercase">New / Corrected Version:</span>
+                              <div className="p-2 rounded bg-emerald-50 border border-emerald-200 text-[11px] text-emerald-800 line-clamp-2">
+                                <span className="text-slate-500 block text-[10px] uppercase font-semibold">New / Corrected Version:</span>
                                 "{dec.edited_content}"
                               </div>
                             </div>
@@ -627,10 +627,10 @@ export const ReviewCenterView: React.FC<ReviewCenterViewProps> = ({
               )}
             </div>
 
-            <div className="pt-3 border-t border-slate-800 flex justify-end shrink-0">
+            <div className="pt-3 border-t border-slate-100 flex justify-end shrink-0">
               <button
                 onClick={() => setHistoryModalItem(null)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors cursor-pointer"
+                className="px-4 py-2 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-800 transition-colors cursor-pointer"
               >
                 Close
               </button>
